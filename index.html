@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ホロドリ 編成シミュレーター</title>
+<style>
+:root {
+  --bg: #0c1220; --bg2: #0f1628; --bg3: #131b30;
+  --sidebar-bg: #080d1a; --sidebar-w: 200px;
+  --card: #151e35; --card-hover: #1a2545; --card-selected: #1e2d55;
+  --accent: #00d4ff; --accent-dim: rgba(0,212,255,0.12); --accent2: #ff6b9d;
+  --text: #e4ecf4; --text-dim: #5a6a80; --text-mid: #8a9ab0;
+  --cute: #ff69b4; --pure: #44cc88; --happy: #ffb347;
+  --border: #1e2a45; --border-light: #283858;
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; }
+
+/* Sidebar */
+.sidebar {
+  width:var(--sidebar-w); min-height:100vh; background:var(--sidebar-bg);
+  border-right:1px solid var(--border); position:fixed; top:0; left:0; z-index:100;
+  display:flex; flex-direction:column; transition:transform 0.3s;
+}
+.sidebar-header { padding:20px 16px 16px; border-bottom:1px solid var(--border); }
+.sidebar-logo { font-size:1.15em; font-weight:bold; }
+.sidebar-logo .hl { background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.sidebar-sub { font-size:0.7em; color:var(--text-dim); margin-top:4px; }
+.sidebar-nav { flex:1; padding:16px 0; display:flex; flex-direction:column; gap:2px; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:12px 18px;
+  cursor:pointer; transition:all 0.15s; color:var(--text-mid); font-size:0.88em;
+  border-left:3px solid transparent; white-space:nowrap;
+}
+.nav-item:hover { background:rgba(255,255,255,0.03); color:var(--text); }
+.nav-item.active { color:var(--accent); background:var(--accent-dim); border-left-color:var(--accent); font-weight:600; }
+.nav-icon { width:20px; text-align:center; font-size:1.05em; }
+.sidebar-footer { padding:14px 16px; border-top:1px solid var(--border); font-size:0.68em; color:var(--text-dim); line-height:1.6; }
+.sidebar-footer a { color:var(--accent); text-decoration:none; }
+.sidebar-toggle { display:none; position:fixed; top:10px; left:10px; z-index:200; width:40px; height:40px; background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:1.2em; cursor:pointer; align-items:center; justify-content:center; font-family:inherit; }
+.sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:90; }
+
+/* Main */
+.main { flex:1; margin-left:var(--sidebar-w); min-height:100vh; }
+.page { display:none; padding:8px 16px; }
+.page.active { display:block; }
+
+/* Dashboard layout */
+.builder-layout { display:flex; flex-direction:column; gap:4px; }
+.builder-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
+.builder-left { min-width:0; }
+.builder-right { min-width:0; }
+.builder-full { grid-column:1/-1; min-width:0; }
+
+/* Section titles */
+.section-title {
+  display:flex; align-items:center; gap:5px;
+  margin-bottom:4px; padding-bottom:3px; border-bottom:1px solid var(--border);
+}
+.section-title .step-num {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:18px; height:18px; border-radius:50%;
+  background:var(--accent); color:var(--bg); font-size:0.65em; font-weight:bold; flex-shrink:0;
+}
+.section-title .step-text { font-size:0.82em; font-weight:600; }
+.section-title .step-hint { font-size:0.78em; color:var(--accent2); margin-left:auto; }
+
+/* Deck area */
+.deck-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:3px; margin-bottom:4px; }
+.deck-slot {
+  background:var(--card); border:2px dashed var(--border);
+  border-radius:5px; padding:2px 2px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:40px; cursor:pointer; transition:all 0.15s; position:relative; text-align:center;
+}
+.deck-slot:hover { border-color:rgba(0,212,255,0.35); background:var(--card-hover); }
+.deck-slot.active { border-color:var(--accent); border-style:solid; box-shadow:0 0 16px rgba(0,212,255,0.2); }
+.deck-slot.filled { border-style:solid; border-color:var(--border-light); }
+.deck-slot.filled.type-cute-border { border-color:var(--cute); }
+.deck-slot.filled.type-pure-border { border-color:var(--pure); }
+.deck-slot.filled.type-happy-border { border-color:var(--happy); }
+.deck-slot.leader-slot.filled { box-shadow:0 0 12px rgba(0,212,255,0.15); }
+.slot-label { font-size:0.68em; color:var(--text-dim); margin-bottom:3px; font-weight:700; letter-spacing:0.05em; }
+.slot-label.leader-label { color:var(--accent); font-size:0.72em; }
+.slot-empty { font-size:0.78em; color:var(--text-dim); }
+.slot-name { font-size:0.82em; font-weight:700; line-height:1.2; margin-bottom:1px; }
+.slot-costume { font-size:0.62em; color:var(--text-mid); margin-bottom:2px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slot-type-badge { margin-bottom:2px; }
+.slot-total { font-size:0.78em; font-weight:600; color:var(--accent); }
+.slot-params { display:flex; gap:4px; justify-content:center; margin-top:2px; font-size:0.65em; font-weight:600; }
+.slot-params .sp { color:var(--cute); } .slot-params .st { color:var(--pure); } .slot-params .ss { color:var(--happy); }
+.slot-remove {
+  position:absolute; top:4px; right:6px; font-size:0.75em; color:var(--text-dim);
+  cursor:pointer; background:rgba(0,0,0,0.4); border-radius:50%;
+  width:20px; height:20px; display:flex; align-items:center; justify-content:center; transition:all 0.15s;
+}
+.slot-remove:hover { color:#f66; background:rgba(255,0,0,0.25); }
+.deck-actions { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+.deck-count { font-size:0.88em; color:var(--text-mid); font-weight:600; }
+
+/* Type badge */
+.type-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:0.72em; font-weight:bold; white-space:nowrap; }
+.type-cute { background:var(--cute); color:#fff; }
+.type-pure { background:var(--pure); color:#fff; }
+.type-happy { background:var(--happy); color:#333; }
+
+/* Buttons */
+.btn { padding:8px 20px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:0.85em; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.btn:hover { border-color:var(--accent); background:var(--card-hover); }
+
+/* Picker */
+.picker-overlay {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:200;
+  background:rgba(0,0,0,0.7); backdrop-filter:blur(4px);
+  justify-content:center; align-items:center; padding:20px;
+}
+.picker-overlay.open { display:flex; }
+.picker-modal {
+  background:var(--bg2); border:1px solid var(--border); border-radius:14px;
+  width:100%; max-width:720px; max-height:85vh; display:flex; flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.picker-modal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--border);
+}
+.picker-modal-title { font-weight:700; font-size:1em; }
+.picker-modal-close {
+  width:32px; height:32px; border:none; background:rgba(255,255,255,0.06);
+  color:var(--text-mid); border-radius:8px; font-size:1.2em; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all 0.15s;
+}
+.picker-modal-close:hover { background:rgba(255,68,68,0.15); color:#f77; }
+.picker-modal-filters { padding:12px 20px; border-bottom:1px solid var(--border); display:flex; gap:8px; flex-wrap:wrap; }
+.picker-modal-filters input, .picker-modal-filters select {
+  padding:7px 10px; background:var(--card); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); font-size:0.85em; outline:none;
+}
+.picker-modal-filters input { flex:1; min-width:120px; }
+.picker-modal-filters input:focus, .picker-modal-filters select:focus { border-color:var(--accent); }
+.picker-modal-body { flex:1; overflow-y:auto; padding:12px 20px 20px; }
+.filter-bar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+.filter-bar input, .filter-bar select {
+  padding:9px 14px; background:var(--card); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); font-size:0.88em; font-family:inherit; transition:border-color 0.2s;
+}
+.filter-bar input { flex:1; min-width:180px; }
+.filter-bar input:focus, .filter-bar select:focus { border-color:var(--accent); outline:none; }
+.filter-bar input::placeholder { color:var(--text-dim); }
+
+.picker-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:8px; max-height:480px; overflow-y:auto; padding:4px 2px;
+}
+.pick-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; cursor:pointer; transition:all 0.12s;
+  display:grid; grid-template-columns:auto 1fr; gap:0 12px;
+}
+.pick-card:hover { border-color:rgba(0,212,255,0.4); background:var(--card-hover); transform:translateY(-1px); }
+.pick-card.used { opacity:0.25; pointer-events:none; }
+.pc-type-col { grid-row:1/4; display:flex; align-items:center; }
+.pc-header { display:flex; align-items:baseline; gap:8px; }
+.pc-name { font-size:0.92em; font-weight:700; }
+.pc-costume { font-size:0.78em; color:var(--text-dim); }
+.pc-meta { display:flex; gap:8px; align-items:center; font-size:0.82em; margin-top:3px; color:var(--text-mid); }
+.pc-total { color:var(--accent); font-weight:700; font-size:1.05em; }
+.pc-params { font-variant-numeric:tabular-nums; }
+.pc-skill { font-size:0.78em; color:var(--text-mid); margin-top:5px; line-height:1.4; grid-column:1/-1; border-top:1px solid var(--border); padding-top:6px; margin-top:8px; }
+
+/* Score panel */
+.score-section { margin-top:0; }
+.score-panel { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:6px 8px; }
+.score-header { text-align:center; margin-bottom:4px; }
+.score-label { font-size:0.7em; color:var(--text-dim); margin-bottom:1px; }
+.score-main { font-size:1.8em; font-weight:800; color:var(--accent); text-shadow:0 0 30px rgba(0,212,255,0.3); letter-spacing:-0.02em; }
+.score-params { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; margin:2px 0; }
+.score-param-box { background:rgba(0,0,0,0.2); border-radius:3px; padding:1px 2px; text-align:center; }
+.score-param-box .sp-label { font-size:0.58em; color:var(--text-dim); margin-bottom:0; }
+.score-param-box .sp-value { font-size:0.82em; font-weight:700; font-variant-numeric:tabular-nums; }
+.stat-p { color:#ff8888; } .stat-t { color:#88dd88; } .stat-s { color:#88aaff; }
+.score-details { display:flex; flex-wrap:wrap; gap:4px; padding-top:4px; border-top:1px solid var(--border); }
+.score-detail-item { display:flex; justify-content:space-between; align-items:center; padding:2px 6px; background:rgba(0,0,0,0.12); border-radius:4px; font-size:0.72em; flex:1; min-width:45%; }
+.sdi-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.boost-section { margin-top:0; }
+.boost-title { font-size:0.75em; font-weight:700; color:var(--text-mid); margin-bottom:4px; }
+.boost-table { width:100%; border-collapse:collapse; font-size:0.7em; background:var(--card); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.boost-table th { padding:4px 3px; color:var(--text-dim); font-weight:700; background:rgba(255,255,255,0.04); border-bottom:1px solid var(--border); text-align:center; font-size:0.9em; white-space:nowrap; }
+.boost-table td { padding:3px 3px; border-bottom:1px solid rgba(255,255,255,0.04); text-align:center; font-variant-numeric:tabular-nums; }
+.boost-table tr:last-child td { border-bottom:none; }
+.boost-table .bt-left { text-align:left; }
+.boost-table .bt-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px; }
+.boost-table .bt-from { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px; color:var(--text-mid); }
+.boost-table .bt-pct { color:var(--accent); font-weight:700; }
+.boost-table .bt-plus { color:#6f6; font-weight:600; }
+.boost-table .bt-zero { color:var(--text-dim); }
+.boost-table .bt-costume-row td { background:rgba(100,200,255,0.05); }
+.boost-table .bt-total-row td { font-weight:700; border-top:2px solid var(--border); background:rgba(255,255,255,0.03); }
+
+/* Optimizer */
+.opt-section { margin-top:12px; }
+.opt-btn { width:100%; padding:6px 12px; background:linear-gradient(135deg,#4a6cf7,#6366f1); color:#fff; border:none; border-radius:var(--radius); font-size:0.78em; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
+.opt-btn:hover { opacity:0.85; }
+.opt-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.tier-mode-btn { background:var(--surface); color:var(--text); }
+.tier-mode-btn.active { background:linear-gradient(135deg,#4a6cf7,#6366f1) !important; color:#fff !important; border-color:#4a6cf7 !important; }
+.opt-progress { margin-top:10px; }
+.opt-progress-bar { height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+.opt-progress-fill { height:100%; background:var(--accent); transition:width 0.1s; width:0%; }
+.opt-progress-text { font-size:0.75em; color:var(--text-dim); margin-top:4px; text-align:center; }
+.opt-results { margin-top:12px; }
+.opt-result-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:border-color 0.2s; }
+.opt-result-card:hover { border-color:var(--accent); }
+.opt-result-rank { font-size:0.75em; color:var(--text-dim); font-weight:700; }
+.opt-result-score { font-size:1.2em; font-weight:800; color:var(--accent); margin:4px 0; font-variant-numeric:tabular-nums; }
+.opt-result-members { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.opt-member-chip { font-size:0.72em; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-mid); }
+.opt-note { font-size:0.75em; color:var(--text-dim); margin-top:8px; text-align:center; }
+.sdi-label { color:var(--text-dim); }
+.sdi-value { font-weight:600; font-variant-numeric:tabular-nums; }
+
+.cond-status { margin-top:2px; padding:2px 8px; border-radius:4px; font-size:0.7em; line-height:1.3; }
+.cond-met { background:rgba(68,255,68,0.08); border:1px solid rgba(68,255,68,0.2); color:#6f6; }
+.cond-unmet { background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.2); color:#f77; }
+.cond-none { background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); }
+
+/* Skill status panel */
+.skill-section { margin-top:12px; }
+.skill-panel { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.skill-card { padding:1px 4px; border-bottom:1px solid var(--border); }
+.skill-card:last-child { border-bottom:none; }
+.skill-card-header { display:flex; align-items:center; gap:3px; margin-bottom:0; }
+.skill-card-name { font-weight:700; font-size:0.68em; }
+.skill-card-role { font-size:0.52em; color:var(--text-dim); font-weight:600; }
+.skill-row { display:flex; align-items:center; gap:2px; margin-top:0; font-size:0.6em; line-height:1.2; }
+.skill-tag {
+  flex-shrink:0; padding:0px 5px; border-radius:3px; font-size:0.72em; font-weight:700;
+  min-width:48px; text-align:center;
+}
+.skill-tag-passive { background:rgba(100,200,255,0.15); color:#6cf; border:1px solid rgba(100,200,255,0.25); }
+.skill-tag-active { background:rgba(255,180,80,0.15); color:#fb4; border:1px solid rgba(255,180,80,0.25); }
+.skill-tag-costume { background:rgba(200,100,255,0.15); color:#c8f; border:1px solid rgba(200,100,255,0.25); }
+.skill-text { color:var(--text-mid); }
+.skill-status { margin-left:auto; flex-shrink:0; font-size:0.72em; font-weight:600; padding:1px 5px; border-radius:3px; }
+.skill-ok { background:rgba(68,255,68,0.1); color:#6f6; }
+.skill-ng { background:rgba(255,68,68,0.1); color:#f77; }
+.skill-live { background:rgba(255,255,255,0.05); color:var(--text-dim); }
+.skill-need { font-size:0.78em; color:#f77; margin-left:4px; }
+
+.note { font-size:0.82em; color:var(--text-dim); padding:14px 16px; background:rgba(0,0,0,0.15); border-radius:8px; line-height:1.6; text-align:center; }
+.method-badge { display:inline-block; margin-top:2px; padding:2px 10px; background:var(--accent-dim); border:1px solid rgba(0,212,255,0.2); border-radius:20px; font-size:0.68em; color:var(--accent); }
+
+/* Character table */
+.char-table { width:100%; border-collapse:collapse; font-size:0.88em; }
+.char-table th { text-align:left; padding:10px 10px; border-bottom:2px solid var(--border); color:var(--text-dim); font-size:0.82em; position:sticky; top:0; background:var(--bg); z-index:1; cursor:pointer; user-select:none; white-space:nowrap; }
+.char-table th:hover { color:var(--text); }
+.char-table th .sort-arrow { font-size:0.7em; margin-left:2px; }
+.char-table td { padding:10px 10px; border-bottom:1px solid var(--border); }
+.char-table tr:hover { background:var(--card); }
+.char-table .rank-col { width:36px; text-align:center; }
+.char-table .name-col { font-weight:600; }
+.char-table .num-col { text-align:right; font-variant-numeric:tabular-nums; }
+
+::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:var(--bg2); } ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+@media (max-width:960px) {
+  .builder-row { grid-template-columns:1fr; }
+  .builder-right { max-height:none; }
+}
+@media (max-width:768px) {
+  .sidebar { transform:translateX(-100%); } .sidebar.open { transform:translateX(0); }
+  .sidebar-toggle { display:flex; } .sidebar-overlay.open { display:block; }
+  .main { margin-left:0; } .page { padding:16px; padding-top:56px; }
+  .builder-row { grid-template-columns:1fr; }
+  .deck-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
+  .deck-slot { min-height:70px; padding:6px 4px; } .slot-name { font-size:0.75em; }
+  .picker-grid { grid-template-columns:1fr; max-height:400px; }
+  .score-params { grid-template-columns:1fr; } .score-details { grid-template-columns:1fr; }
+  .score-main { font-size:2em; }
+  .char-table { font-size:0.78em; } .char-table td, .char-table th { padding:8px 6px; }
+}
+@media (max-width:480px) { .deck-grid { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+
+<button class="sidebar-toggle" id="sidebar-toggle">&#9776;</button>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo"><span class="hl">ホロドリ</span></div>
+    <div class="sidebar-sub">編成シミュレーター</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-item active" data-page="builder"><span class="nav-icon">&#9733;</span>編成シミュレーター</div>
+    <div class="nav-item" data-page="tier"><span class="nav-icon">&#127942;</span>リーダーTIER</div>
+    <div class="nav-item" data-page="member-tier"><span class="nav-icon">&#127941;</span>メンバーTIER</div>
+    <div class="nav-item" data-page="characters"><span class="nav-icon">&#128196;</span>カード一覧</div>
+  </div>
+  <div class="sidebar-footer">メンバー5人パラメータ + パッシブ + 衣装スキル + アクティブ + スコアサポート</div>
+</nav>
+
+<div class="main">
+  <div class="page active" id="page-builder">
+    <div class="builder-layout">
+    <!-- Row 1: Card slots -->
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <div class="deck-grid" id="deck-area" style="flex:1;min-width:0;">
+        <div class="deck-slot leader-slot" data-slot="0"><div class="slot-label leader-label">LEADER</div><div class="slot-empty">タップして選択</div></div>
+        <div class="deck-slot" data-slot="1"><div class="slot-label">M1</div><div class="slot-empty">-</div></div>
+        <div class="deck-slot" data-slot="2"><div class="slot-label">M2</div><div class="slot-empty">-</div></div>
+        <div class="deck-slot" data-slot="3"><div class="slot-label">M3</div><div class="slot-empty">-</div></div>
+        <div class="deck-slot" data-slot="4"><div class="slot-label">M4</div><div class="slot-empty">-</div></div>
+        <div class="deck-slot" data-slot="5"><div class="slot-label">M5</div><div class="slot-empty">-</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+        <span class="deck-count" id="deck-count" style="font-size:0.75em;color:var(--text-dim)">0/6</span>
+        <button class="btn" id="clear-btn" style="padding:3px 10px;font-size:0.72em;">リセット</button>
+        <button class="tier-mode-btn active" id="deck-dup-toggle" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;font-size:0.68em;">同キャラ可</button>
+      </div>
+    </div>
+    <!-- Row 2: Score left + Skills right -->
+    <div class="builder-row">
+    <div class="builder-left">
+      <div id="score-area">
+        <div class="note" style="font-size:0.75em;">リーダーとメンバー5枚を選択するとスコアが計算されます。</div>
+      </div>
+      <div id="opt-area" style="margin-top:6px;">
+        <div class="note" style="font-size:0.75em;">リーダーを選択すると最適メンバーを自動探索。</div>
+      </div>
+    </div>
+    <div class="builder-right">
+      <div id="skill-area">
+        <div class="note" style="font-size:0.75em;">編成するとスキル発動条件が表示されます。</div>
+      </div>
+    </div>
+    <!-- Row 3: Timeline + Boost detail (full width) -->
+    <div class="builder-full" id="timeline-area"></div>
+    <div class="builder-full" id="boost-area"></div>
+    </div><!-- /.builder-row -->
+    </div><!-- /.builder-layout -->
+  </div>
+
+  <div class="page" id="page-tier">
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.3em; margin-bottom:6px;">リーダーTIERランキング</h2>
+      <div style="font-size:0.85em; color:var(--text-dim); margin-bottom:10px;">各リーダーの最適編成時の最大スコアで順位付け（ビルド時に事前計算済み）。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="tier-mode-btn active" id="tier-btn-nodup" onclick="toggleTierMode(false)" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.85em;">リーダー≠メンバー</button>
+        <button class="tier-mode-btn" id="tier-btn-dup" onclick="toggleTierMode(true)" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.85em;">リーダー=メンバー可</button>
+      </div>
+    </div>
+    <div id="tier-result"></div>
+  </div>
+
+  <div class="page" id="page-member-tier">
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.3em; margin-bottom:6px;">メンバーTIERランキング</h2>
+      <div style="font-size:0.85em; color:var(--text-dim); margin-bottom:10px;">リーダーTIER結果から、各カードが最適メンバーに採用された回数で順位付け（ビルド時に事前計算済み）。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="tier-mode-btn active" id="mtier-btn-nodup" onclick="toggleTierMode(false)" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.85em;">リーダー≠メンバー</button>
+        <button class="tier-mode-btn" id="mtier-btn-dup" onclick="toggleTierMode(true)" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.85em;">リーダー=メンバー可</button>
+      </div>
+    </div>
+    <div id="mtier-result"></div>
+  </div>
+
+  <div class="page" id="page-characters">
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.3em; margin-bottom:6px;">星5 カード一覧</h2>
+      <div style="font-size:0.85em; color:var(--text-dim);">全星5カードのパラメータとスキル情報。ヘッダーをクリックでソート可能。</div>
+    </div>
+    <div class="filter-bar">
+      <input id="char-search" type="text" placeholder="カード名で検索...">
+      <select id="char-type-filter"><option value="">全タイプ</option><option value="キュート">キュート</option><option value="ピュア">ピュア</option><option value="ハッピー">ハッピー</option></select>
+      <select id="char-gen-filter"><option value="">全所属</option></select>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="char-table" id="char-table">
+        <thead><tr>
+          <th class="rank-col" data-sort="rank">#</th>
+          <th data-sort="name">キャラ名 <span class="sort-arrow"></span></th>
+          <th data-sort="costume">衣装名</th>
+          <th data-sort="type">タイプ</th>
+          <th data-sort="gen">所属</th>
+          <th class="num-col" data-sort="total">トータル <span class="sort-arrow">&#9660;</span></th>
+          <th class="num-col" data-sort="p">P</th>
+          <th class="num-col" data-sort="t">T</th>
+          <th class="num-col" data-sort="s">S</th>
+          <th data-sort="best">得意</th>
+          <th>衣装スキル</th>
+        </tr></thead>
+        <tbody id="char-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [{"id":"999412","url":"https://gamerch.com/hololive-dreams/999412","キャラ名":"パヴォリア・レイネ","衣装名":"おすまし孔雀と嗜む一杯","タイプ":"ハッピー","所属":"ID2期生","トータル最大":26082,"パフォーマンス最大":7668,"テクニック最大":10433,"センス最大":7981,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"29秒毎に高確率で10秒間スコアが60%UP","パッシブスキル":"ハッピータイプ2人のテクニックが41%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが120%UP"},{"id":"999340","url":"https://gamerch.com/hololive-dreams/999340","キャラ名":"白銀ノエル","衣装名":"風薫るおっとり騎士","タイプ":"ハッピー","所属":"3期生","トータル最大":26082,"パフォーマンス最大":7668,"テクニック最大":7981,"センス最大":10433,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"19秒毎に中確率で7秒間スコアが60％UP","パッシブスキル":"ハッピータイプ2人以上で自身の全パラメータが32%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブ追加条件":"ハッピータイプ2人以上でスコアが120%UP","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが120%UP"},{"id":"999396","url":"https://gamerch.com/hololive-dreams/999396","キャラ名":"一伊那尓栖","衣装名":"ぽかぽかチャージなひととき","タイプ":"ピュア","所属":"Myth","トータル最大":26082,"パフォーマンス最大":7668,"テクニック最大":10433,"センス最大":7981,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"32秒毎に高確率で14秒間スコアが45%UP","パッシブスキル":"ピュアタイプ2人以上で自身の全パラメータが32%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブ追加条件":"ピュアタイプ2人以上でスコアが95%UP","アクティブスキル追加条件":"ピュアタイプ2人以上でスコアが95%UP"},{"id":"999291","url":"https://gamerch.com/hololive-dreams/999291","キャラ名":"百鬼あやめ","衣装名":"隠世でのほほん、気ままな提灯","タイプ":"ピュア","所属":"2期生","トータル最大":26082,"パフォーマンス最大":10433,"テクニック最大":7668,"センス最大":7981,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"29秒毎に高確率で10秒間スコアが60％UP","パッシブスキル":"ピュアタイプ2人のパフォーマンスが41%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブ追加条件":"ピュアタイプ2人以上でスコアが120%UP","アクティブスキル追加条件":"ピュアタイプ2人以上でスコアが120%UP"},{"id":"999387","url":"https://gamerch.com/hololive-dreams/999387","キャラ名":"オーロ・クロニー","衣装名":"典獄ささやくClock Tower","タイプ":"キュート","所属":"Promise","トータル最大":26082,"パフォーマンス最大":7668,"テクニック最大":7981,"センス最大":10433,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"33秒毎に高確率で12秒間スコアが55%UP","パッシブスキル":"キュートタイプ2人のセンスが41%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブ追加条件":"キュートタイプ2人以上でスコアが115%UP","アクティブスキル追加条件":"キュートタイプ2人以上でスコアが115%UP"},{"id":"999408","url":"https://gamerch.com/hololive-dreams/999408","キャラ名":"カエラ・コヴァルスキア","衣装名":"こころ強さは鍛冶場で研ぐ","タイプ":"キュート","所属":"ID3期生","トータル最大":26082,"パフォーマンス最大":7981,"テクニック最大":10433,"センス最大":7668,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"19秒毎に中確率で7秒間スコアが60%UP","パッシブスキル":"キュートタイプ2人のテクニックが41%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブスキル追加条件":"キュートタイプ2人以上でスコアが120%UP"},{"id":"1000366","url":"https://gamerch.com/hololive-dreams/1000366","キャラ名":"大空スバル","衣装名":"Energeticスプラッシュ！","タイプ":"キュート","所属":"2期生","トータル最大":26082,"パフォーマンス最大":7981,"テクニック最大":7668,"センス最大":10433,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"17秒毎に中確率で7秒間スコアが55％UP","パッシブスキル":"ピュアタイプ2人の全パラメータが15%UP","衣装スキル":"全員のスコアサポート効果60%","アクティブ追加条件":"40コンボ以上でスコアが105%UP","アクティブスキル追加条件":"40コンボ以上でスコアが105%UP"},{"id":"999386","url":"https://gamerch.com/hololive-dreams/999386","キャラ名":"尾丸ポルカ","衣装名":"変幻自在！ポルカサーカス開演！","タイプ":"ハッピー","所属":"5期生","トータル最大":26029,"パフォーマンス最大":7366,"テクニック最大":7991,"センス最大":10672,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"21秒毎に中確率で8秒間スコアが55％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"ハッピータイプ2人以上でスコアが115%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが115%UP"},{"id":"999382","url":"https://gamerch.com/hololive-dreams/999382","キャラ名":"獅白ぼたん","衣装名":"目を奪う神エイム！lion's hunt","タイプ":"ハッピー","所属":"5期生","トータル最大":26029,"パフォーマンス最大":10672,"テクニック最大":7991,"センス最大":7366,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"27秒毎に高確率で9秒間スコアが60％UP","パッシブスキル":"ハッピータイプ2人以上でハッピータイプ2人のパフォーマンスが43%UP","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"ハッピータイプ2人以上でスコアが125%UP","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが125%UP"},{"id":"999295","url":"https://gamerch.com/hololive-dreams/999295","キャラ名":"癒月ちょこ","衣装名":"悪魔な魅惑に手玉にとられて","タイプ":"ハッピー","所属":"2期生","トータル最大":26029,"パフォーマンス最大":7366,"テクニック最大":7991,"センス最大":10672,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"20秒毎に中確率で7秒間スコアが120％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%","衣装スキル(詳細)":"ハッピータイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%"},{"id":"999406","url":"https://gamerch.com/hololive-dreams/999406","キャラ名":"こぼ・かなえる","衣装名":"あめ上がりの雨喜雨喜シャーマン","タイプ":"ピュア","所属":"ID3期生","トータル最大":26029,"パフォーマンス最大":10672,"テクニック最大":7366,"センス最大":7991,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"15秒毎に中確率で6秒間スコアが55%UPのピュアタイプ 2人以上でスコアが110%UP","パッシブスキル":"ピュアタイプ2人以上で自身の全パラメータが32%UP","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"ピュアタイプ2人以上でスコアが110%UP"},{"id":"999415","url":"https://gamerch.com/hololive-dreams/999415","キャラ名":"クレイジー・オリー","衣装名":"Z nonstop talker","タイプ":"ピュア","所属":"ID2期生","トータル最大":26029,"パフォーマンス最大":7991,"テクニック最大":10672,"センス最大":7366,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"25秒毎に中確率で10秒間スコアが55%UP","パッシブスキル":"ピュアタイプ2人のスコアサポート11%","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"ピュアタイプ2人以上でスコアが110%UP","アクティブスキル追加条件":"ピュアタイプ2人以上でスコアが110%UP"},{"id":"999395","url":"https://gamerch.com/hololive-dreams/999395","キャラ名":"博衣こより","衣装名":"助手くんの心を鷲掴みライブ！","タイプ":"ピュア","所属":"holoX","トータル最大":26029,"パフォーマンス最大":7991,"テクニック最大":7366,"センス最大":10672,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"23秒毎に高確率で8秒間スコアが115％UP","パッシブスキル":"ピュアタイプ2人以上でピュアタイプ2人のセンスが43%UP","衣装スキル":"ピュアタイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%","SP追加効果":"ライフ1000以上でスキル発動率55%UP","衣装スキル(詳細)":"ピュアタイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%UP"},{"id":"999332","url":"https://gamerch.com/hololive-dreams/999332","キャラ名":"兎田ぺこら","衣装名":"愛嬌たっぷりラビットフィールド","タイプ":"キュート","所属":"3期生","トータル最大":26029,"パフォーマンス最大":7366,"テクニック最大":10672,"センス最大":7991,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"30秒毎に中確率で12秒間スコアが105％UP","パッシブスキル":"キュートタイプ2人以上で自身の全パラメータが32%UP","衣装スキル":"キュートタイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%","衣装スキル(詳細)":"キュートタイプ2人以上で全員の全パラメータが30%UP、スコアサポート効果25%"},{"id":"999356","url":"https://gamerch.com/hololive-dreams/999356","キャラ名":"角巻わため","衣装名":"Woolly Smile Festival","タイプ":"キュート","所属":"4期生","トータル最大":26029,"パフォーマンス最大":10672,"テクニック最大":7991,"センス最大":7366,"スペシャルスキル":"11秒間スコアサポート効果145%","アクティブスキル":"15秒毎に中確率で6秒間スコアが55％UP","パッシブスキル":"キュートタイプ2人のスコアサポート効果11%","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"キュートタイプ2人以上でスコアが110%UP","アクティブスキル追加条件":"キュートタイプ2人以上でスコアが110%UP"},{"id":"999393","url":"https://gamerch.com/hololive-dreams/999393","キャラ名":"鷹嶺ルイ","衣装名":"組織支える超敏腕幹部","タイプ":"キュート","所属":"holoX","トータル最大":26029,"パフォーマンス最大":7991,"テクニック最大":10672,"センス最大":7366,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"21秒毎に中確率で8秒間スコアが55％UP","パッシブスキル":"キュートタイプ2人以上で自身の全パラメータが32%UP","衣装スキル":"全員の全パラメータが45%UP","アクティブ追加条件":"キュートタイプ2人以上でスコアが115%UP","アクティブスキル追加条件":"キュートタイプ2人以上でスコアが115%UP"},{"id":"999390","url":"https://gamerch.com/hololive-dreams/999390","キャラ名":"IRyS","衣装名":"nepholim sonority","タイプ":"ハッピー","所属":"Promise","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":10909,"センス最大":7844,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"25秒毎に中確率で11秒間スコアが95%UP","パッシブスキル":"Promise2人のテクニックが43%UP","衣装スキル":"Promise2人以上で全員の全パラメータが50%UP","SP追加効果":"ライフ1000以上でスキル発動率55%UP"},{"id":"999411","url":"https://gamerch.com/hololive-dreams/999411","キャラ名":"ベスティア・ゼータ","衣装名":"陽だまりとネコと構成員","タイプ":"ハッピー","所属":"ID3期生","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7844,"センス最大":7221,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"25秒毎に高確率で11秒間スコアが90%UP","パッシブスキル":"ID3期生が2人以上で自身の全パラメータが33%UP","衣装スキル":"ID3期生が2人以上で全員の全パラメータが50%UP"},{"id":"999391","url":"https://gamerch.com/hololive-dreams/999391","キャラ名":"ラプラス・ダークネス","衣装名":"作戦開始！見せろ総帥の手腕","タイプ":"ハッピー","所属":"holoX","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":10909,"センス最大":7844,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"18秒毎に中確率で6秒間スコアが125％UP","パッシブスキル":"holoXが2人以上で自身の全パラメータが33%UP","衣装スキル":"holoXが2人以上で全員の全パラメータが50%UP"},{"id":"999370","url":"https://gamerch.com/hololive-dreams/999370","キャラ名":"一条莉々華","衣装名":"深夜にひと息、CEOの限界飯","タイプ":"ハッピー","所属":"ReGLOSS","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7844,"センス最大":7221,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"30秒毎に高確率で11秒間スコアが110%UP","パッシブスキル":"ReGLOSSが2人以上でReGLOSS2人のパフォーマンスが45%UP","衣装スキル":"ReGOSSが2人以上で全員の全パラメータが50%UP"},{"id":"999348","url":"https://gamerch.com/hololive-dreams/999348","キャラ名":"宝鐘マリン","衣装名":"妖艶あふれるマリンブルー","タイプ":"ハッピー","所属":"3期生","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":10909,"センス最大":7844,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"23秒毎に高確率で8秒間スコアが115％UP","パッシブスキル":"3期生が2人以上で3期生2人のスコアサポート効果12%","衣装スキル":"3期生が2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率40%UP"},{"id":"999379","url":"https://gamerch.com/hololive-dreams/999379","キャラ名":"ネリッサ・レイヴンクロフト","衣装名":"歌に揺らめくノクターン","タイプ":"ピュア","所属":"Advent","トータル最大":25974,"パフォーマンス最大":7844,"テクニック最大":10909,"センス最大":7221,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"15秒毎に中確率で7秒間スコアが90%UP","パッシブスキル":"Adventが2人以上で自身の全パラメータが33%UP","衣装スキル":"Adventが2人以上で全員の全パラメータが50%UP"},{"id":"999357","url":"https://gamerch.com/hololive-dreams/999357","キャラ名":"常闇トワ","衣装名":"ガチで終わらんチルい夜遊び","タイプ":"ピュア","所属":"4期生","トータル最大":25974,"パフォーマンス最大":7844,"テクニック最大":7221,"センス最大":10909,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"19秒毎に高確率で8秒間スコアが95％UP","パッシブスキル":"4期生2人以上で4期生2人のセンスが45%UP","衣装スキル":"4期生2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率50%UP"},{"id":"999405","url":"https://gamerch.com/hololive-dreams/999405","キャラ名":"森カリオペ","衣装名":"Reaper's death flow","タイプ":"ピュア","所属":"Myth","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7221,"センス最大":7844,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"33秒毎に高確率で11秒間スコアが120%UP","パッシブスキル":"Mythが2人以上でMyth2人のスコアサポート効果12%","衣装スキル":"Mythが2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率40%UP"},{"id":"999288","url":"https://gamerch.com/hololive-dreams/999288","キャラ名":"白上フブキ","衣装名":"狐のお宮でこんこんこん","タイプ":"ピュア","所属":"1期生,ゲーマーズ","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7221,"センス最大":7844,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"30秒毎に高確率で11秒間スコアが110％UP","パッシブスキル":"1期生が2人以上で1期生2人のパフォーマンスが45%UP","衣装スキル":"1期生が2人以上で全員の全パラメータが50%UP"},{"id":"999361","url":"https://gamerch.com/hololive-dreams/999361","キャラ名":"雪花ラミィ","衣装名":"さびしがり屋な雪夜の令嬢","タイプ":"ピュア","所属":"5期生","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":7844,"センス最大":10909,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"23秒毎に高確率で8秒間スコアが115％UP","パッシブスキル":"5期生2人以上で自身の全パラメータが33%UP","衣装スキル":"5期生2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率40%UP"},{"id":"999269","url":"https://gamerch.com/hololive-dreams/999269","キャラ名":"ときのそら","衣装名":"ひたむきに描く虹のうた","タイプ":"キュート","所属":"0期生","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7221,"センス最大":7844,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"24秒毎に中確率で10秒間スコアが100％UP","パッシブスキル":"0期生が2人以上で自身の全パラメータが33%アップ","衣装スキル":"0期生が2人以上で全員の全パラメータが50%UP"},{"id":"999413","url":"https://gamerch.com/hololive-dreams/999413","キャラ名":"アーニャ・メルフィッサ","衣装名":"ソファに沈んでまったりゲーム","タイプ":"キュート","所属":"ID2期生","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":7844,"センス最大":10909,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"24秒毎に中確率で10秒間スコアが100%UP","パッシブスキル":"ID2期生が2人以上で自身の全パラメータが33%UP","衣装スキル":"ID2期生が2人以上で全員の全パラメータが50%UP"},{"id":"999417","url":"https://gamerch.com/hololive-dreams/999417","キャラ名":"ムーナ・ホシノヴァ","衣装名":"Lunar Songstress","タイプ":"キュート","所属":"ID1期生","トータル最大":25974,"パフォーマンス最大":7221,"テクニック最大":7844,"センス最大":10909,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"30秒毎に高確率で11秒間スコアが110%UP","パッシブスキル":"ID1期生が2人以上でID1期生2人のセンスが45%UP","衣装スキル":"ID1期生が2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率40%UP"},{"id":"999305","url":"https://gamerch.com/hololive-dreams/999305","キャラ名":"大神ミオ","衣装名":"ホッととろけるnightscape","タイプ":"キュート","所属":"ゲーマーズ","トータル最大":25974,"パフォーマンス最大":7844,"テクニック最大":7221,"センス最大":10909,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"27秒毎に高確率で9秒間スコアが120％UP","パッシブスキル":"ゲーマーズが2人以上でゲーマーズ2人のスコアサポート効果11%","衣装スキル":"ゲーマーズ2人以上で全員の全パラメータが50%UP"},{"id":"999301","url":"https://gamerch.com/hololive-dreams/999301","キャラ名":"大空スバル","衣装名":"クワッとじゃれ合うアヒルの午後","タイプ":"キュート","所属":"2期生","トータル最大":25974,"パフォーマンス最大":10909,"テクニック最大":7221,"センス最大":7844,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"34秒毎に高確率で12秒間スコアが115％UP","パッシブスキル":"2期生2人以上で2期生2人のパフォーマンスが45%UP","衣装スキル":"2期生2人以上で全員の全パラメータが50%UP","SP追加効果":"スキル発動率40%UP"},{"id":"999418","url":"https://gamerch.com/hololive-dreams/999418","キャラ名":"アユンダ・リス","衣装名":"いたずらたくらむ木漏れ日の森","タイプ":"ハッピー","所属":"ID1期生","トータル最大":25920,"パフォーマンス最大":6947,"テクニック最大":11145,"センス最大":7828,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"34秒毎に高確率で15秒間スコアが90%UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員のテクニックが130%UP","SP追加効果":"ライフ1000以上でスキル発動率45%UP"},{"id":"999274","url":"https://gamerch.com/hololive-dreams/999274","キャラ名":"ロボ子さん","衣装名":"高性能なVサイン","タイプ":"ハッピー","所属":"0期生","トータル最大":25920,"パフォーマンス最大":11145,"テクニック最大":7828,"センス最大":6947,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"18秒毎に高確率で8秒間スコアが90％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員のパフォーマンスが130%UP","SP追加効果":"ライフ1000以上でスキル発動率55%UP"},{"id":"1000367","url":"https://gamerch.com/hololive-dreams/1000367","キャラ名":"不知火フレア","衣装名":"sparks sunset","タイプ":"ハッピー","所属":"3期生","トータル最大":25920,"パフォーマンス最大":7828,"テクニック最大":11145,"センス最大":6947,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"33秒毎に高確率で11秒間スコアが60％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員のテクニック80%UP、スコアサポート効果25%","アクティブ追加条件":"ハッピータイプ2人以上でスコアが125%UP","SP追加効果":"スキル発動率40%UP","衣装スキル(詳細)":"ハッピータイプ2人以上で全員のテクニック80%UP、スコアサポート効果25%UP","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが125%UP"},{"id":"999320","url":"https://gamerch.com/hololive-dreams/999320","キャラ名":"戌神ころね","衣装名":"Go! Go! Laughing Skater","タイプ":"ハッピー","所属":"ゲーマーズ","トータル最大":25920,"パフォーマンス最大":7828,"テクニック最大":6947,"センス最大":11145,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"17秒毎に中確率で6秒間スコアが120％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員のセンスが130%UP","SP追加効果":"100コンボ以上でスキル発動率55%UP"},{"id":"1000369","url":"https://gamerch.com/hololive-dreams/1000369","キャラ名":"角巻わため","衣装名":"真夏のもふもふフロートタイム","タイプ":"ハッピー","所属":"4期生","トータル最大":25920,"パフォーマンス最大":6947,"テクニック最大":7828,"センス最大":11145,"スペシャルスキル":"11秒間スコアサポート効果130%","アクティブスキル":"35秒毎に高確率で12秒間スコアが60%UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"ハッピータイプ2人以上で全員のセンスが80%UP、スコアサポート効果25%","アクティブ追加条件":"ハッピータイプ2人以上でスコアが120%UP","SP追加効果":"スキル発動率45%UP","衣装スキル(詳細)":"ハッピータイプ2人以上で全員のセンス80%UP、スコアサポート効果25%UP","アクティブスキル追加条件":"ハッピータイプ2人以上でスコアが120%UP"},{"id":"999416","url":"https://gamerch.com/hololive-dreams/999416","キャラ名":"アイラニ・イオフィフティーン","衣装名":"陽光射すCosmos Palette","タイプ":"ピュア","所属":"ID1期生","トータル最大":25920,"パフォーマンス最大":7828,"テクニック最大":11145,"センス最大":6947,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"17秒毎に中確率で6秒間スコアが120%UP","パッシブスキル":"ピュアタイプ2人のテクニックが41%UP","衣装スキル":"ピュアタイプ2人以上で全員のテクニックが130%UP","SP追加効果":"100コンボ以上でスキル発動率55%UP"},{"id":"999385","url":"https://gamerch.com/hololive-dreams/999385","キャラ名":"ハコス・ベールズ","衣装名":"Chaotic Powerful Rat","タイプ":"ピュア","所属":"Promise","トータル最大":25920,"パフォーマンス最大":11145,"テクニック最大":7828,"センス最大":6947,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"25秒毎に高確率で11秒間スコアが90%UP","パッシブスキル":"ピュアタイプ2人のスコアサポート効果11%","衣装スキル":"ピュアタイプ2人で全員のパフォーマンスが130%UP"},{"id":"999374","url":"https://gamerch.com/hololive-dreams/999374","キャラ名":"音乃瀬奏","衣装名":"パレードで笑顔をお届け","タイプ":"ピュア","所属":"ReGLOSS","トータル最大":25920,"パフォーマンス最大":7828,"テクニック最大":6947,"センス最大":11145,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"27秒毎に高確率で12秒間スコアが90%UP","パッシブスキル":"ReGLOSS2人のセンスが43%UP","衣装スキル":"ピュアタイプ2人以上で全員のセンスが130%UP","SP追加効果":"100コンボ以上でスキル発動率55%UP"},{"id":"999376","url":"https://gamerch.com/hololive-dreams/999376","キャラ名":"モココ・アビスガード","衣装名":"のほほんドーナツパーティ♪","タイプ":"キュート","所属":"Advent","トータル最大":25920,"パフォーマンス最大":7828,"テクニック最大":6947,"センス最大":11145,"スペシャルスキル":"11秒間スコアサポート効果130%","アクティブスキル":"25秒毎に高確率で8秒間スコアが125%UP","パッシブスキル":"キュートタイプ2人のスコアサポート効果11%","衣装スキル":"キュートタイプ2人以上で全員のセンスが130%UP","SP追加効果":"100コンボ以上でスキル発動率50%UP"},{"id":"999402","url":"https://gamerch.com/hololive-dreams/999402","キャラ名":"小鳥遊キアラ","衣装名":"Lovely Phoenixダイナー","タイプ":"キュート","所属":"Myth","トータル最大":25920,"パフォーマンス最大":11145,"テクニック最大":6947,"センス最大":7828,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"23秒毎に高確率で8秒間スコアが115%UP","パッシブスキル":"キュートタイプ2人のスコアサポート効果11%","衣装スキル":"キュートタイプ2人以上で全員のパフォーマンスが130%UP","SP追加効果":"100コンボ以上でスキル発動率55%UP"},{"id":"1000368","url":"https://gamerch.com/hololive-dreams/1000368","キャラ名":"白銀ノエル","衣装名":"波まとうゆるふわKnight","タイプ":"キュート","所属":"3期生","トータル最大":25920,"パフォーマンス最大":11145,"テクニック最大":6947,"センス最大":7828,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"21秒毎に高確率で7秒間スコアが120%UP","パッシブスキル":"3期生が2人以上で3期生2人のスコアサポート効果12%","衣装スキル":"3期生が2人以上で全員のパフォーマンスが135%UP","SP追加効果":"3期生2人以上でスキル発動率45%UP"},{"id":"999419","url":"https://gamerch.com/hololive-dreams/999419","キャラ名":"風真いろは","衣装名":"ちくりんジャキン！と一刀両断","タイプ":"キュート","所属":"holoX","トータル最大":25920,"パフォーマンス最大":6947,"テクニック最大":11145,"センス最大":7828,"スペシャルスキル":"12秒間スコアサポート効果120%","アクティブスキル":"34秒毎に高確率で15秒間スコアが90%UP","パッシブスキル":"キュートタイプ2人のスコアサポート効果11%","衣装スキル":"キュートタイプ2人以上で全員のテクニックが130%UP","SP追加効果":"ライフ1000以上でスキル発動率55%UP"},{"id":"999276","url":"https://gamerch.com/hololive-dreams/999276","キャラ名":"さくらみこ","衣装名":"サクラBloom","タイプ":"ハッピー","所属":"0期生","トータル最大":25865,"パフォーマンス最大":7682,"テクニック最大":6803,"センス最大":11380,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"15秒毎に中確率で6秒間スコアが55％UP","パッシブスキル":"ハッピータイプ2人のスコアサポート効果11%","衣装スキル":"全員のセンスが120%UP","アクティブ追加条件":"40コンボ以上でスコアが110%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"40コンボ以上でスコアが110%UP"},{"id":"999384","url":"https://gamerch.com/hololive-dreams/999384","キャラ名":"シオリ・ノヴェラ","衣装名":"書庫ではぐくむ探求心","タイプ":"ハッピー","所属":"Advent","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":6803,"センス最大":7682,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"32秒毎に高確率で11秒間スコアが60%UP","パッシブスキル":"Advent2人のパフォーマンスが43%UP","衣装スキル":"全員のパフォーマンスが120%UP","アクティブ追加条件":"40コンボ以上でスコアが120%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"40コンボ以上でスコアが120%UP"},{"id":"999368","url":"https://gamerch.com/hololive-dreams/999368","キャラ名":"儒烏風亭らでん","衣装名":"叡智を灯し、アートに導く","タイプ":"ハッピー","所属":"ReGLOSS","トータル最大":25865,"パフォーマンス最大":7682,"テクニック最大":6803,"センス最大":11380,"スペシャルスキル":"10秒間スコアサポート効果145%スキル発動率が50%UP","アクティブスキル":"22秒毎に高確率で8秒間スコアが55%UP","パッシブスキル":"ReGLOSS2人のセンスが43%UP","衣装スキル":"全員のセンスが120%UP","アクティブ追加条件":"ライフ600以上でスコアが115%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"ライフ600以上でスコアが115%UP"},{"id":"999289","url":"https://gamerch.com/hololive-dreams/999289","キャラ名":"夏色まつり","衣装名":"ハジける快活チアリーダー","タイプ":"ハッピー","所属":"1期生","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":7682,"センス最大":6803,"スペシャルスキル":"11秒間スコアサポート効果145%","アクティブスキル":"23秒毎に高確率で8秒間スコアが60％UP","パッシブスキル":"1期生2人のパフォーマンスが43%UP","衣装スキル":"全員のパフォーマンスが120%UP","アクティブ追加条件":"ライフ600以上でスコアが120%UP","アクティブスキル追加条件":"ライフ600以上でスコアが120%UP"},{"id":"999358","url":"https://gamerch.com/hololive-dreams/999358","キャラ名":"姫森ルーナ","衣装名":"姫に忠誠アフタヌーン","タイプ":"ハッピー","所属":"4期生","トータル最大":25865,"パフォーマンス最大":7682,"テクニック最大":11380,"センス最大":6803,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"29秒毎に高確率で10秒間スコアが60％UP","パッシブスキル":"4期生2人のテクニックが43%UP","衣装スキル":"全員のテクニックが120%UP","アクティブ追加条件":"40コンボ以上でスコアが120%UP","アクティブスキル追加条件":"40コンボ以上でスコアが120%UP"},{"id":"1000370","url":"https://gamerch.com/hololive-dreams/1000370","キャラ名":"音乃瀬奏","衣装名":"潮風にのせる、笑顔のハーモニー","タイプ":"ハッピー","所属":"ReGLOSS","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":7682,"センス最大":6803,"スペシャルスキル":"14秒間スコアサポート効果115%","アクティブスキル":"23秒毎に中確率で8秒間スコアが120%UP","パッシブスキル":"ハッピータイプ2人以上でハッピータイプ2人のパフォーマンスが43%UP","衣装スキル":"ハッピータイプ2人以上で全員のパフォーマンスが130%UP"},{"id":"999275","url":"https://gamerch.com/hololive-dreams/999275","キャラ名":"AZKi","衣装名":"咲き誇る一途な花","タイプ":"ピュア","所属":"0期生","トータル最大":25865,"パフォーマンス最大":6803,"テクニック最大":7682,"センス最大":11380,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"20秒毎に高確率で7秒間スコアが60％UP","パッシブスキル":"0期生2人のセンスが43%UP","衣装スキル":"全員のセンスが120%UP","アクティブ追加条件":"ライフ600以上でスコアが120%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"ライフ600以上でスコアが120%UP"},{"id":"999335","url":"https://gamerch.com/hololive-dreams/999335","キャラ名":"不知火フレア","衣装名":"ハーフエルフの風渡るゴンドラ","タイプ":"ピュア","所属":"3期生","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":6803,"センス最大":7682,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"26秒毎に高確率で9秒間スコアが60％UP","パッシブスキル":"3期生2人のパフォーマンスが43%UP","衣装スキル":"全員のパフォーマンスが120%UP","アクティブ追加条件":"40コンボ以上でスコアが120%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"40コンボ以上でスコアが120%UP"},{"id":"999381","url":"https://gamerch.com/hololive-dreams/999381","キャラ名":"古石ビジュー","衣装名":"キラッキラCrystal place","タイプ":"ピュア","所属":"Advent","トータル最大":25865,"パフォーマンス最大":6803,"テクニック最大":7682,"センス最大":11380,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"27秒毎に中確率で9秒間スコアが65%UP","パッシブスキル":"ピュアタイプ2人のスコアサポート効果11%","衣装スキル":"全員のセンスが120%UP","アクティブ追加条件":"40コンボ以上でスコアが130%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"40コンボ以上でスコアが130%UP"},{"id":"999283","url":"https://gamerch.com/hololive-dreams/999283","キャラ名":"星街すいせい","衣装名":"心奪うComet Tune","タイプ":"ピュア","所属":"0期生","トータル最大":25865,"パフォーマンス最大":6803,"テクニック最大":11380,"センス最大":7682,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"29秒毎に高確率で10秒間スコアが60％UP","パッシブスキル":"ピュアタイプ2人のテクニックが41%UP","衣装スキル":"全員のテクニックが120%UP","アクティブ追加条件":"ライフ600以上でスコアが120%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"ライフ600以上でスコアが120%UP"},{"id":"999286","url":"https://gamerch.com/hololive-dreams/999286","キャラ名":"赤井はあと","衣装名":"let's freestyle おやつタイム","タイプ":"ピュア","所属":"1期生","トータル最大":25865,"パフォーマンス最大":7682,"テクニック最大":11380,"センス最大":6803,"スペシャルスキル":"12秒間スコアサポート効果135%","アクティブスキル":"19秒毎に中確率で7秒間スコアが60％UP","パッシブスキル":"ピュアタイプ2人のスコアサポート効果11%","衣装スキル":"全員のテクニックが120%UP","アクティブ追加条件":"40コンボ以上でスコアが120%UP","アクティブスキル追加条件":"40コンボ以上でスコアが120%UP"},{"id":"999284","url":"https://gamerch.com/hololive-dreams/999284","キャラ名":"アキ・ローゼンタール","衣装名":"艶帯びたハーフエルフ","タイプ":"キュート","所属":"1期生","トータル最大":25865,"パフォーマンス最大":6803,"テクニック最大":7682,"センス最大":11380,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"21秒毎に中確率で8秒間スコアが55％UP","パッシブスキル":"1期生2人のセンスが43%UP","衣装スキル":"全員のセンスが120%UP","アクティブ追加条件":"ライフ600以上でスコアが115%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"ライフ600以上でスコアが115%UP"},{"id":"999365","url":"https://gamerch.com/hololive-dreams/999365","キャラ名":"桃鈴ねね","衣装名":"一緒に歌お！イノセントリズム","タイプ":"キュート","所属":"5期生","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":6803,"センス最大":7682,"スペシャルスキル":"11秒間スコアサポート効果145%","アクティブスキル":"26秒毎に高確率で9秒間スコアが60％UP","パッシブスキル":"キュートタイプ2人のスコアサポート効果11%","衣装スキル":"全員のパフォーマンスが120%UP","アクティブ追加条件":"ライフ600以上でスコアが120%UP","アクティブスキル追加条件":"ライフ600以上でスコアが120%UP"},{"id":"999312","url":"https://gamerch.com/hololive-dreams/999312","キャラ名":"猫又おかゆ","衣装名":"宴の果てに、ナイショの戯れ","タイプ":"キュート","所属":"ゲーマーズ","トータル最大":25865,"パフォーマンス最大":7682,"テクニック最大":11380,"センス最大":6803,"スペシャルスキル":"10秒間スコアサポート効果160%","アクティブスキル":"25秒毎に中確率で10秒間スコアが55％UP","パッシブスキル":"キュートタイプ2人のテクニックが41%UP","衣装スキル":"全員のテクニックが120%UP","アクティブ追加条件":"ライフ600以上でスコアが110%UP","アクティブスキル追加条件":"ライフ600以上でスコアが110%UP"},{"id":"999364","url":"https://gamerch.com/hololive-dreams/999364","キャラ名":"轟はじめ","衣装名":"ガーリー番長のお裾分け","タイプ":"キュート","所属":"ReGLOSS","トータル最大":25865,"パフォーマンス最大":11380,"テクニック最大":6803,"センス最大":7682,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"26秒ごとに高確率で9秒間スコアが60%UP","パッシブスキル":"キュートタイプ2人のパフォーマンスが41%UP","衣装スキル":"全員のパフォーマンスが120%UP","アクティブ追加条件":"40コンボ以上でスコアが120%UP","SP追加効果":"スキル発動率50%UP","アクティブスキル追加条件":"40コンボ以上でスコアが120%UP"},{"id":"999377","url":"https://gamerch.com/hololive-dreams/999377","キャラ名":"フワワ・アビスガード","衣装名":"ぽわぽわドーナツパーティ♪","タイプ":"キュート","所属":"Advent","トータル最大":25860,"パフォーマンス最大":7682,"テクニック最大":11380,"センス最大":6803,"スペシャルスキル":"10秒間スコアサポート効果145%","アクティブスキル":"20秒毎に中確率で8秒間スコアが55%UP","パッシブスキル":"キュートタイプ2人のテクニックが41%UP","衣装スキル":"全員のテクニックが120%UP","SP追加効果":"スキル発動率50%UP"}];
+const TIER_DATA = [{"l":37,"s":769684,"m":[3,24,30,46,57]},{"l":40,"s":769684,"m":[3,24,30,46,57]},{"l":32,"s":766303,"m":[3,8,24,30,46]},{"l":48,"s":766303,"m":[3,8,24,30,46]},{"l":41,"s":762284,"m":[8,10,19,48,50]},{"l":39,"s":749035,"m":[4,28,38,45,54]},{"l":44,"s":744301,"m":[3,24,30,46,57]},{"l":50,"s":744301,"m":[3,24,30,46,57]},{"l":55,"s":744301,"m":[3,24,30,46,57]},{"l":42,"s":741731,"m":[5,36,52,56,58]},{"l":38,"s":741274,"m":[4,12,28,51,54]},{"l":57,"s":741123,"m":[3,8,24,30,46]},{"l":34,"s":735792,"m":[1,28,38,45,54]},{"l":46,"s":728770,"m":[8,19,41,48,50]},{"l":43,"s":724233,"m":[4,28,38,45,54]},{"l":49,"s":724233,"m":[4,28,38,45,54]},{"l":51,"s":724233,"m":[4,28,38,45,54]},{"l":45,"s":717414,"m":[4,12,28,51,54]},{"l":47,"s":717195,"m":[5,36,52,56,58]},{"l":53,"s":717195,"m":[5,36,52,56,58]},{"l":58,"s":712889,"m":[5,15,36,52,56]},{"l":36,"s":712577,"m":[5,52,53,56,58]},{"l":54,"s":710310,"m":[12,38,43,45,49]},{"l":31,"s":707697,"m":[5,35,47,56,58]},{"l":56,"s":696322,"m":[5,15,36,52,58]},{"l":52,"s":691206,"m":[5,21,36,56,58]},{"l":35,"s":681441,"m":[1,28,38,45,54]},{"l":24,"s":665906,"m":[1,8,28,48,54]},{"l":29,"s":665565,"m":[8,15,24,46,56]},{"l":17,"s":663868,"m":[1,8,10,24,46]},{"l":19,"s":662847,"m":[4,8,28,48,54]},{"l":20,"s":662560,"m":[1,8,17,19,48]},{"l":27,"s":659509,"m":[3,24,30,46,57]},{"l":28,"s":659509,"m":[3,24,30,46,57]},{"l":25,"s":657693,"m":[1,7,8,19,48]},{"l":33,"s":656542,"m":[1,15,18,56,58]},{"l":30,"s":655083,"m":[3,4,10,27,50]},{"l":26,"s":650824,"m":[12,18,36,49,52]},{"l":21,"s":649157,"m":[8,44,48,56,58]},{"l":18,"s":647231,"m":[12,15,36,52,56]},{"l":22,"s":645320,"m":[14,19,47,48,57]},{"l":23,"s":640882,"m":[2,36,40,52,57]},{"l":7,"s":640752,"m":[4,8,28,48,54]},{"l":10,"s":640752,"m":[4,8,28,48,54]},{"l":11,"s":640752,"m":[4,8,28,48,54]},{"l":14,"s":640752,"m":[4,8,28,48,54]},{"l":15,"s":640752,"m":[4,8,28,48,54]},{"l":16,"s":638476,"m":[4,24,37,46,54]},{"l":13,"s":634559,"m":[1,8,28,48,54]},{"l":9,"s":632165,"m":[4,8,28,48,54]},{"l":8,"s":631269,"m":[1,19,28,48,54]},{"l":12,"s":629057,"m":[3,24,30,46,57]},{"l":0,"s":548417,"m":[4,8,28,48,54]},{"l":1,"s":548417,"m":[4,8,28,48,54]},{"l":2,"s":548417,"m":[4,8,28,48,54]},{"l":3,"s":548417,"m":[4,8,28,48,54]},{"l":5,"s":548417,"m":[4,8,28,48,54]},{"l":6,"s":548417,"m":[4,8,28,48,54]},{"l":4,"s":545375,"m":[3,8,24,30,46]}];
+const TIER_DATA_DUP = [{"l":37,"s":769684,"m":[3,24,30,46,57]},{"l":40,"s":769684,"m":[3,24,30,46,57]},{"l":32,"s":766303,"m":[3,8,24,30,46]},{"l":48,"s":766303,"m":[3,8,24,30,46]},{"l":41,"s":762284,"m":[8,10,19,48,50]},{"l":39,"s":749035,"m":[4,28,38,45,54]},{"l":44,"s":744301,"m":[3,24,30,46,57]},{"l":50,"s":744301,"m":[3,24,30,46,57]},{"l":55,"s":744301,"m":[3,24,30,46,57]},{"l":42,"s":741731,"m":[5,36,52,56,58]},{"l":38,"s":741274,"m":[4,12,28,51,54]},{"l":57,"s":741123,"m":[3,8,24,30,46]},{"l":34,"s":735792,"m":[1,28,38,45,54]},{"l":46,"s":728770,"m":[8,19,41,48,50]},{"l":43,"s":724233,"m":[4,28,38,45,54]},{"l":49,"s":724233,"m":[4,28,38,45,54]},{"l":51,"s":724233,"m":[4,28,38,45,54]},{"l":45,"s":717414,"m":[4,12,28,51,54]},{"l":47,"s":717195,"m":[5,36,52,56,58]},{"l":53,"s":717195,"m":[5,36,52,56,58]},{"l":58,"s":712889,"m":[5,15,36,52,56]},{"l":36,"s":712577,"m":[5,52,53,56,58]},{"l":54,"s":710310,"m":[12,38,43,45,49]},{"l":31,"s":707697,"m":[5,35,47,56,58]},{"l":56,"s":696322,"m":[5,15,36,52,58]},{"l":52,"s":691206,"m":[5,21,36,56,58]},{"l":35,"s":681441,"m":[1,28,38,45,54]},{"l":24,"s":665906,"m":[1,8,28,48,54]},{"l":29,"s":665565,"m":[8,15,24,46,56]},{"l":17,"s":663868,"m":[1,8,10,24,46]},{"l":19,"s":662847,"m":[4,8,28,48,54]},{"l":20,"s":662560,"m":[1,8,17,19,48]},{"l":27,"s":659509,"m":[3,24,30,46,57]},{"l":28,"s":659509,"m":[3,24,30,46,57]},{"l":25,"s":657693,"m":[1,7,8,19,48]},{"l":33,"s":656542,"m":[1,15,18,56,58]},{"l":26,"s":650824,"m":[12,18,36,49,52]},{"l":30,"s":650514,"m":[3,6,17,48,50]},{"l":21,"s":649157,"m":[8,44,48,56,58]},{"l":18,"s":647231,"m":[12,15,36,52,56]},{"l":22,"s":645320,"m":[14,19,47,48,57]},{"l":23,"s":640882,"m":[2,36,40,52,57]},{"l":7,"s":640752,"m":[4,8,28,48,54]},{"l":10,"s":640752,"m":[4,8,28,48,54]},{"l":11,"s":640752,"m":[4,8,28,48,54]},{"l":14,"s":640752,"m":[4,8,28,48,54]},{"l":15,"s":640752,"m":[4,8,28,48,54]},{"l":16,"s":638476,"m":[4,24,37,46,54]},{"l":13,"s":634559,"m":[1,8,28,48,54]},{"l":9,"s":632165,"m":[4,8,28,48,54]},{"l":8,"s":631269,"m":[1,19,28,48,54]},{"l":12,"s":629057,"m":[3,24,30,46,57]},{"l":0,"s":548417,"m":[4,8,28,48,54]},{"l":1,"s":548417,"m":[4,8,28,48,54]},{"l":2,"s":548417,"m":[4,8,28,48,54]},{"l":3,"s":548417,"m":[4,8,28,48,54]},{"l":5,"s":548417,"m":[4,8,28,48,54]},{"l":6,"s":548417,"m":[4,8,28,48,54]},{"l":4,"s":545375,"m":[3,8,24,30,46]}];
+const TYPE_NAMES = ['キュート','ピュア','ハッピー'];
+const GEN_NAMES = ['0期生','1期生','2期生','3期生','4期生','5期生','ゲーマーズ','holoX','ID1期生','ID2期生','ID3期生','Myth','Promise','Advent','ReGLOSS'];
+const GEN_ORDER = {'0期生':0,'1期生':1,'2期生':2,'ゲーマーズ':3,'1期生,ゲーマーズ':3,'3期生':4,'4期生':5,'5期生':6,'holoX':7,'ID1期生':8,'ID2期生':9,'ID3期生':10,'Myth':11,'Promise':12,'Advent':13,'ReGLOSS':14};
+const cards = DATA.map((c,i) => {
+  const g = (c['所属']||'').replace('ReGOSS','ReGLOSS');
+  return {
+    idx:i, name:c['キャラ名'], costume:c['衣装名']||'', type:c['タイプ'],
+    gen:g, genOrder: GEN_ORDER[g] !== undefined ? GEN_ORDER[g] : 99,
+    total:c['トータル最大']||0, p:c['パフォーマンス最大']||0, t:c['テクニック最大']||0, s:c['センス最大']||0,
+    costumeSkill:c['衣装スキル']||'', costumeSkillDetail:c['衣装スキル(詳細)']||'',
+    passive:c['パッシブスキル']||'', active:c['アクティブスキル']||'',
+    activeExtra:c['アクティブ追加条件']||'', sp:c['スペシャルスキル']||''
+  };
+});
+
+// ===== Costume skill parser (for leader score calc) =====
+function parseCostumeSkill(text, detailText) {
+  const r = {condType:null,condVal:'',condCount:0,params:[],pct:0,ssPct:0};
+  if (!text && !detailText) return r;
+  const src = detailText || text;
+  const ssm = src.match(/スコアサポート効果(\d+)%/);
+  if (ssm) r.ssPct = parseInt(ssm[1]);
+  for (const t of TYPE_NAMES) { const m=src.match(new RegExp(t+'タイプ(\\d+)人')); if(m){r.condType='type';r.condVal=t;r.condCount=parseInt(m[1]);break;} }
+  if (!r.condType) { for (const g of GEN_NAMES) { const esc=g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); const m=src.match(new RegExp(esc+'[がの]?(\\d+)人')); if(m){r.condType='gen';r.condVal=g;r.condCount=parseInt(m[1]);break;} } }
+  const paramPart = src.split('スコアサポート')[0];
+  const pm=paramPart.match(/(\d+)%/); r.pct=pm?parseInt(pm[1]):0;
+  if (src.includes('全パラメータ')) r.params=['P','T','S'];
+  else if (src.includes('パフォーマンス')) r.params=['P'];
+  else if (src.includes('テクニック')) r.params=['T'];
+  else if (src.includes('センス')) r.params=['S'];
+  return r;
+}
+const costumeSkills = cards.map(c => parseCostumeSkill(c.costumeSkill, c.costumeSkillDetail));
+
+// ===== Passive skill parser =====
+function parsePassiveSkill(text) {
+  const r = {condType:null,condVal:'',condCount:0,target:'self',targetType:null,targetVal:'',targetCount:0,params:[],pct:0,isScoreSupport:false,ssPct:0};
+  if (!text) return r;
+  // Score support passive
+  if (text.includes('スコアサポート')) {
+    r.isScoreSupport=true;
+    const ssm=text.match(/スコアサポート[効果]*(\d+)[%％]/);
+    if(ssm) r.ssPct=parseInt(ssm[1]);
+  }
+  // Condition: type or gen
+  for (const t of TYPE_NAMES) {
+    const m=text.match(new RegExp(t+'タイプ\\s*(\\d+)人'));
+    if(m){r.condType='type';r.condVal=t;r.condCount=parseInt(m[1]);break;}
+  }
+  if(!r.condType){
+    for(const g of GEN_NAMES){
+      const esc=g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      const m=text.match(new RegExp(esc+'[がの]?\\s*(\\d+)人'));
+      if(m){r.condType='gen';r.condVal=g;r.condCount=parseInt(m[1]);break;}
+    }
+  }
+  // Score support: only needs condition, skip param/target parsing
+  if (r.isScoreSupport) return r;
+  // Target
+  if(text.includes('自身の')){
+    r.target='self';
+  } else {
+    r.target='group'; r.targetType=r.condType; r.targetVal=r.condVal;
+    r.targetCount=r.condCount;
+  }
+  // Params
+  if(text.includes('全パラメータ')) r.params=['P','T','S'];
+  else if(text.includes('パフォーマンス')) r.params=['P'];
+  else if(text.includes('テクニック')) r.params=['T'];
+  else if(text.includes('センス')) r.params=['S'];
+  // Percentage
+  const pm=text.match(/(\d+)%/);
+  r.pct=pm?parseInt(pm[1]):0;
+  return r;
+}
+const passiveSkills = cards.map(c => parsePassiveSkill(c.passive));
+
+// ===== Active skill parser =====
+function parseActiveSkill(text, extraText) {
+  const r = {interval:0, duration:0, scoreUp:0, extraScoreUp:0, extraCond:null};
+  if (!text) return r;
+  const m = text.match(/(\d+)秒(?:毎|ごと)に.+?(\d+)秒間スコアが(\d+)[%％]UP/);
+  if (m) { r.interval=parseInt(m[1]); r.duration=parseInt(m[2]); r.scoreUp=parseInt(m[3]); }
+  if (extraText) {
+    const em = extraText.match(/スコアが(\d+)[%％]UP/);
+    if (em) r.extraScoreUp = parseInt(em[1]);
+    r.extraCond = parseSkillCond(extraText);
+  }
+  return r;
+}
+const activeSkills = cards.map(c => parseActiveSkill(c.active, c.activeExtra));
+
+// ===== SP skill parser =====
+function parseSpSkill(text) {
+  const r = {duration:0, ssPct:0};
+  if (!text) return r;
+  const m = text.match(/(\d+)秒間スコアサポート効果(\d+)%/);
+  if (m) { r.duration = parseInt(m[1]); r.ssPct = parseInt(m[2]); }
+  return r;
+}
+const spSkills = cards.map(c => parseSpSkill(c.sp));
+
+const SONG_LENGTH = 160;
+
+// Calculate score support total from costume skill (leader) + SP skills (members)
+function calcScoreSupport(leaderIdx, memberIdxs) {
+  const party = [leaderIdx, ...memberIdxs];
+  let total = 0;
+  // Costume skill score support (leader provides, condition check members only)
+  const cs = costumeSkills[leaderIdx];
+  if (cs.ssPct > 0) {
+    let condMet = true;
+    if (cs.condType) {
+      if (cs.condType === 'type') condMet = memberIdxs.filter(i=>cards[i].type===cs.condVal).length >= cs.condCount;
+      else if (cs.condType === 'gen') condMet = memberIdxs.filter(i=>cards[i].gen.includes(cs.condVal)).length >= cs.condCount;
+    }
+    if (condMet) total += cs.ssPct;
+  }
+  // Passive skill score support (buffs active skills)
+  let passiveSS = 0;
+  const passiveSSMembers = [];
+  for (const idx of memberIdxs) {
+    const ps = passiveSkills[idx];
+    if (!ps.isScoreSupport || ps.ssPct <= 0) continue;
+    let condMet = true;
+    let condLabel = '常時';
+    if (ps.condType === 'type') {
+      const cnt = memberIdxs.filter(i=>cards[i].type===ps.condVal).length;
+      condMet = cnt >= ps.condCount;
+      condLabel = ps.condVal+ps.condCount+'人('+cnt+'人)';
+    } else if (ps.condType === 'gen') {
+      const cnt = memberIdxs.filter(i=>cards[i].gen.includes(ps.condVal)).length;
+      condMet = cnt >= ps.condCount;
+      condLabel = ps.condVal+ps.condCount+'人('+cnt+'人)';
+    }
+    passiveSSMembers.push({idx, name: cards[idx].name, pct: ps.ssPct, condMet, condLabel});
+    if (condMet) passiveSS += ps.ssPct;
+  }
+  total += passiveSS;
+  // SP skill score support (members only, non-overlapping, time-weighted average)
+  let spWeighted = 0;
+  for (const idx of memberIdxs) {
+    const sp = spSkills[idx];
+    if (sp.ssPct > 0 && sp.duration > 0) spWeighted += sp.duration * sp.ssPct;
+  }
+  const spAvg = Math.round(spWeighted * 100 / SONG_LENGTH) / 100;
+  const costumeSSVal = total - passiveSS;
+  return {constant: costumeSSVal, passiveSS, passiveSSMembers, spAvg, total: Math.round((total + spAvg) * 100) / 100};
+}
+
+function calcActiveBonus(leaderIdx, memberIdxs) {
+  // Timeline simulation: 1-second resolution, members only (leader doesn't fire active)
+  const timeline = new Array(SONG_LENGTH).fill(0);
+  const party = [leaderIdx, ...memberIdxs];
+  // Per-member active skill info for display
+  const activeMembers = [];
+  for (const idx of memberIdxs) {
+    const as = activeSkills[idx];
+    if (as.interval <= 0 || as.scoreUp <= 0) continue;
+    let effectiveUp = as.scoreUp;
+    if (as.extraScoreUp > 0) {
+      if (!as.extraCond || !as.extraCond.condType) {
+        effectiveUp = as.extraScoreUp;
+      } else if (as.extraCond.condType === 'combo' || as.extraCond.condType === 'life') {
+        effectiveUp = as.extraScoreUp;
+      } else if (as.extraCond.condType === 'type') {
+        if (memberIdxs.filter(i=>cards[i].type===as.extraCond.condVal).length >= as.extraCond.condCount) effectiveUp = as.extraScoreUp;
+      } else if (as.extraCond.condType === 'gen') {
+        if (memberIdxs.filter(i=>cards[i].gen.includes(as.extraCond.condVal)).length >= as.extraCond.condCount) effectiveUp = as.extraScoreUp;
+      }
+    }
+    // Count active seconds for this member
+    let memberActiveSec = 0;
+    for (let t = as.interval; t < SONG_LENGTH; t += as.interval) {
+      for (let d = 0; d < as.duration && (t+d) < SONG_LENGTH; d++) {
+        if (effectiveUp > timeline[t+d]) timeline[t+d] = effectiveUp;
+        memberActiveSec++;
+      }
+    }
+    activeMembers.push({idx, name: cards[idx].name, interval: as.interval, duration: as.duration, scoreUp: effectiveUp, activeSec: memberActiveSec});
+  }
+  // Count total active seconds (any active skill firing)
+  let activeSeconds = 0;
+  let pureActiveTotal = 0;
+  for (let i = 0; i < SONG_LENGTH; i++) {
+    if (timeline[i] > 0) { activeSeconds++; pureActiveTotal += timeline[i]; }
+  }
+  const pureActiveAvg = Math.round(pureActiveTotal * 100 / SONG_LENGTH) / 100;
+  // Score support
+  const ss = calcScoreSupport(leaderIdx, memberIdxs);
+  const otherSS = Math.round((ss.constant + ss.spAvg) * 100) / 100;
+  let totalUp = 0;
+  for (let i = 0; i < SONG_LENGTH; i++) {
+    if (timeline[i] > 0) totalUp += timeline[i] + ss.passiveSS + otherSS;
+    else totalUp += otherSS;
+  }
+  const effectivePassiveSS = Math.round(ss.passiveSS * activeSeconds * 100 / SONG_LENGTH) / 100;
+  return {avg: Math.round(totalUp * 100 / SONG_LENGTH) / 100, ss, activeSeconds, pureActiveAvg, effectivePassiveSS, activeMembers};
+}
+
+// ===== Generic skill condition parser =====
+function parseSkillCond(text) {
+  // Returns: {condType:'type'|'gen'|'combo'|'life'|null, condVal, condCount, checkable}
+  if (!text) return {condType:null, condVal:'', condCount:0, checkable:false};
+  // Type conditions
+  for (const t of TYPE_NAMES) {
+    const m = text.match(new RegExp(t+'タイプ\\s*(\\d+)人'));
+    if (m) return {condType:'type', condVal:t, condCount:parseInt(m[1]), checkable:true};
+  }
+  // Gen conditions
+  for (const g of GEN_NAMES) {
+    const esc = g.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const m = text.match(new RegExp(esc+'[がの]?\\s*(\\d+)人'));
+    if (m) return {condType:'gen', condVal:g, condCount:parseInt(m[1]), checkable:true};
+  }
+  // Combo conditions
+  const comboM = text.match(/(\d+)コンボ以上/);
+  if (comboM) return {condType:'combo', condVal:'', condCount:parseInt(comboM[1]), checkable:false};
+  // Life conditions
+  const lifeM = text.match(/ライフ(\d+)以上/);
+  if (lifeM) return {condType:'life', condVal:'', condCount:parseInt(lifeM[1]), checkable:false};
+  return {condType:null, condVal:'', condCount:0, checkable:false};
+}
+
+function checkSkillCond(cond, partyIdxs) {
+  if (!cond.condType || !cond.checkable) return null; // null = can't determine
+  if (cond.condType==='type') return partyIdxs.filter(i=>cards[i].type===cond.condVal).length >= cond.condCount;
+  if (cond.condType==='gen') return partyIdxs.filter(i=>cards[i].gen.includes(cond.condVal)).length >= cond.condCount;
+  return null;
+}
+
+function condLabel(cond) {
+  if (cond.condType==='type') return cond.condVal+'タイプ'+cond.condCount+'人以上';
+  if (cond.condType==='gen') return cond.condVal+cond.condCount+'人以上';
+  if (cond.condType==='combo') return cond.condCount+'コンボ以上';
+  if (cond.condType==='life') return 'ライフ'+cond.condCount+'以上';
+  return '';
+}
+
+function condCurrentCount(cond, partyIdxs) {
+  if (cond.condType==='type') return partyIdxs.filter(i=>cards[i].type===cond.condVal).length;
+  if (cond.condType==='gen') return partyIdxs.filter(i=>cards[i].gen.includes(cond.condVal)).length;
+  return 0;
+}
+
+function checkCond(cs,partyIdxs) {
+  if(!cs.condType) return true;
+  if(cs.condType==='type') return partyIdxs.filter(i=>cards[i].type===cs.condVal).length>=cs.condCount;
+  if(cs.condType==='gen') return partyIdxs.filter(i=>cards[i].gen.includes(cs.condVal)).length>=cs.condCount;
+  return false;
+}
+
+function calcScore(leaderIdx,memberIdxs) {
+  const party=[leaderIdx,...memberIdxs]; const cs=costumeSkills[leaderIdx];
+  // Step 1: Passive skill per-card boost percentages (leader=index 0 does NOT fire passive)
+  const pB=party.map(()=>0), tB=party.map(()=>0), sB=party.map(()=>0);
+  // Track boost sources: boostLog[targetPartyIdx] = [{fromIdx, fromName, params, pct, targets}]
+  const boostLog=party.map(()=>[]);
+  let passiveActive=false;
+  for(let pi=1;pi<party.length;pi++){
+    const ps=passiveSkills[party[pi]];
+    if(ps.isScoreSupport||ps.pct===0||ps.params.length===0) continue;
+    // Condition check: members only (party[1..5]), exclude leader
+    let met=true;
+    if(ps.condType==='type') met=memberIdxs.filter(i=>cards[i].type===ps.condVal).length>=ps.condCount;
+    else if(ps.condType==='gen') met=memberIdxs.filter(i=>cards[i].gen.includes(ps.condVal)).length>=ps.condCount;
+    if(!met) continue;
+    passiveActive=true;
+    const srcIdx=party[pi]; const srcName=cards[srcIdx].name;
+    if(ps.target==='self'){
+      if(ps.params.includes('P'))pB[pi]+=ps.pct;
+      if(ps.params.includes('T'))tB[pi]+=ps.pct;
+      if(ps.params.includes('S'))sB[pi]+=ps.pct;
+      boostLog[pi].push({fromIdx:srcIdx,fromName:srcName,params:ps.params,pct:ps.pct,target:'self'});
+    } else {
+      // Find matching members (exclude leader at index 0)
+      let candidates=[];
+      for(let ti=1;ti<party.length;ti++){
+        let match=false;
+        if(ps.targetType==='type') match=cards[party[ti]].type===ps.targetVal;
+        else if(ps.targetType==='gen') match=cards[party[ti]].gen.includes(ps.targetVal);
+        if(match) candidates.push(ti);
+      }
+      // Limit to targetCount: pick top N by boost impact (highest base params)
+      if(ps.targetCount>0 && candidates.length>ps.targetCount){
+        candidates.sort((a,b)=>{
+          let ia=0,ib=0;
+          if(ps.params.includes('P')){ia+=cards[party[a]].p;ib+=cards[party[b]].p;}
+          if(ps.params.includes('T')){ia+=cards[party[a]].t;ib+=cards[party[b]].t;}
+          if(ps.params.includes('S')){ia+=cards[party[a]].s;ib+=cards[party[b]].s;}
+          return ib-ia;
+        });
+        candidates=candidates.slice(0,ps.targetCount);
+      }
+      for(const ti of candidates){
+        if(ps.params.includes('P'))pB[ti]+=ps.pct;
+        if(ps.params.includes('T'))tB[ti]+=ps.pct;
+        if(ps.params.includes('S'))sB[ti]+=ps.pct;
+        boostLog[ti].push({fromIdx:srcIdx,fromName:srcName,params:ps.params,pct:ps.pct,target:ps.targetVal});
+      }
+    }
+  }
+  // Step 2: Per-card effective params (base + passive)
+  const effP=party.map((idx,pi)=>Math.round(cards[idx].p*(1+pB[pi]/100)));
+  const effT=party.map((idx,pi)=>Math.round(cards[idx].t*(1+tB[pi]/100)));
+  const effS=party.map((idx,pi)=>Math.round(cards[idx].s*(1+sB[pi]/100)));
+  // Step 3: Sum MEMBERS ONLY (index 1..5, skip leader index 0)
+  let sp=0,st=0,ss=0;
+  for(let i=1;i<party.length;i++){sp+=effP[i];st+=effT[i];ss+=effS[i];}
+  // Step 4: Costume skill on member sums (condition check: members only)
+  let buffed=false; const condMet=checkCond(cs,memberIdxs);
+  if(cs.pct>0&&cs.params.length&&condMet){
+    const mult=1+cs.pct/100;
+    buffed=true;
+    if(cs.params.includes('P'))sp=Math.round(sp*mult);
+    if(cs.params.includes('T'))st=Math.round(st*mult);
+    if(cs.params.includes('S'))ss=Math.round(ss*mult);
+  }
+  // Per-card boost detail for UI (party[0]=leader, party[1..5]=members)
+  const cardDetail = party.map((idx,pi)=>{
+    const base = {p:cards[idx].p, t:cards[idx].t, s:cards[idx].s};
+    const eff = {p:effP[pi], t:effT[pi], s:effS[pi]};
+    return {idx, base, eff, pBoost:pB[pi], tBoost:tB[pi], sBoost:sB[pi], boostLog:boostLog[pi]};
+  });
+  return {total:sp+st+ss,p:sp,t:st,s:ss,buffed,ssPct:cs.ssPct,condMet,passiveActive,cardDetail,
+    costumeParams:cs.params,costumePct:cs.pct};
+}
+
+function typeClass(t){return t==='キュート'?'type-cute':t==='ピュア'?'type-pure':'type-happy';}
+function typeBorderClass(t){return t==='キュート'?'type-cute-border':t==='ピュア'?'type-pure-border':'type-happy-border';}
+
+// ===== Deck State =====
+const deck = [null,null,null,null,null,null];
+let activeSlot = -1;
+let deckDupMode = true; // false=リーダー≠メンバー, true=同キャラ可
+function usedIdxs() { return deck.filter(v=>v!==null); }
+function deckCount() { return deck.filter(v=>v!==null).length; }
+
+function renderDeck() {
+  const labels = ['LEADER','メンバー1','メンバー2','メンバー3','メンバー4','メンバー5'];
+  document.querySelectorAll('.deck-slot').forEach((el,i) => {
+    const idx = deck[i]; const isLeader = i===0;
+    let cls = 'deck-slot' + (isLeader?' leader-slot':'') + (i===activeSlot?' active':'');
+    if (idx!==null) {
+      const c = cards[idx];
+      cls += ' filled ' + typeBorderClass(c.type);
+      el.className = cls;
+      el.innerHTML = '<div class="slot-label '+(isLeader?'leader-label':'')+'">'+labels[i]+'</div>'
+        +'<div class="slot-name">'+c.name+'</div>'
+        +'<div class="slot-costume">'+c.costume+'</div>'
+        +'<div class="slot-type-badge"><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></div>'
+        +'<div class="slot-params"'+(isLeader?' style="opacity:0.35"':'')+'><span class="sp">P:'+c.p.toLocaleString()+'</span><span class="st">T:'+c.t.toLocaleString()+'</span><span class="ss">S:'+c.s.toLocaleString()+'</span></div>'
+        +(isLeader?'<div style="font-size:0.65em;color:var(--text-dim);margin-top:2px">衣装スキル枠（スコア不参加）</div>':'<div class="slot-total">'+c.total.toLocaleString()+'</div>')
+        +'<div class="slot-remove" data-slot="'+i+'">&times;</div>';
+    } else {
+      el.className = cls;
+      el.innerHTML = '<div class="slot-label '+(isLeader?'leader-label':'')+'">'+labels[i]+'</div><div class="slot-empty">タップして選択</div>';
+    }
+  });
+  document.getElementById('deck-count').textContent = deckCount() + ' / 6枚';
+  const overlay = document.getElementById('picker-overlay');
+  const pickLabel = document.getElementById('picking-label');
+  if (activeSlot >= 0) {
+    overlay.classList.add('open');
+    if (activeSlot===0) pickLabel.textContent = 'リーダーを選んでください';
+    else pickLabel.textContent = labels[activeSlot] + 'を選んでください';
+    renderPicker();
+  } else {
+    overlay.classList.remove('open');
+  }
+  renderScore();
+  renderSkillStatus();
+  renderOptimizer();
+}
+
+function renderPicker() {
+  const search = document.getElementById('pick-search').value.toLowerCase();
+  const typeF = document.getElementById('pick-type-filter').value;
+  const genF = document.getElementById('pick-gen-filter').value;
+  const used = new Set(usedIdxs());
+  // In dup mode, leader's idx is allowed for member slots (but not for leader slot itself or already-used member slots)
+  const leaderIdx = deck[0];
+  const memberUsed = new Set(deck.slice(1).filter(v=>v!==null));
+  const usedNames = new Set(usedIdxs().map(i => cards[i].name));
+  const grid = document.getElementById('picker-grid');
+  const sorted = [...cards].sort((a,b)=>a.genOrder-b.genOrder || a.name.localeCompare(b.name));
+  const filtered = sorted.filter(c => {
+    if(search && !c.name.toLowerCase().includes(search) && !c.costume.toLowerCase().includes(search)) return false;
+    if(typeF && c.type!==typeF) return false;
+    if(genF && c.gen!==genF) return false;
+    return true;
+  });
+  grid.innerHTML = filtered.map(c => {
+    let isUsed;
+    if (deckDupMode && activeSlot > 0) {
+      // Member slot in dup mode: allow leader's idx, block other used member idxs
+      isUsed = memberUsed.has(c.idx);
+    } else if (deckDupMode && activeSlot === 0) {
+      // Leader slot in dup mode: block if used as leader (shouldn't happen), allow all
+      isUsed = false;
+    } else {
+      // No dup: block same idx and same name
+      isUsed = used.has(c.idx) || usedNames.has(c.name);
+    }
+    const showSkill = activeSlot===0;
+    return '<div class="pick-card '+(isUsed?'used':'')+'" data-idx="'+c.idx+'">'
+      +'<div class="pc-type-col"><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></div>'
+      +'<div class="pc-header"><span class="pc-name">'+c.name+'</span><span class="pc-costume">'+c.costume+'</span></div>'
+      +'<div class="pc-meta"><span>'+c.gen+'</span><span class="pc-total">'+c.total.toLocaleString()+'</span>'
+      +'<span class="pc-params">P:'+c.p.toLocaleString()+' T:'+c.t.toLocaleString()+' S:'+c.s.toLocaleString()+'</span></div>'
+      +(showSkill && c.costumeSkill ? '<div class="pc-skill">'+c.costumeSkill+'</div>' : '')
+      +'</div>';
+  }).join('');
+  grid.querySelectorAll('.pick-card:not(.used)').forEach(el => {
+    el.addEventListener('click', () => {
+      deck[activeSlot] = parseInt(el.dataset.idx);
+      document.getElementById('pick-search').value = '';
+      let next = -1;
+      for (let i=0;i<6;i++) { if(deck[i]===null){next=i;break;} }
+      activeSlot = next;
+      renderDeck();
+    });
+  });
+}
+
+function renderBoostDetail(res) {
+  const labels = ['LEADER','M1','M2','M3','M4','M5'];
+  const hasAnyPassive = res.cardDetail.some((d,i)=>i>0&&(d.pBoost||d.tBoost||d.sBoost));
+  const hasCostume = res.buffed && res.costumePct>0;
+  if(!hasAnyPassive && !hasCostume) return '';
+
+  // Build flat rows grouped by source (fromIdx), then by target
+  const rows = [];
+  for(let i=1;i<res.cardDetail.length;i++){
+    const d=res.cardDetail[i]; const c=cards[d.idx];
+    if(d.boostLog.length===0) continue;
+    d.boostLog.forEach(log=>{
+      const pV=log.params.includes('P')?Math.round(c.p*log.pct/100):0;
+      const tV=log.params.includes('T')?Math.round(c.t*log.pct/100):0;
+      const sV=log.params.includes('S')?Math.round(c.s*log.pct/100):0;
+      rows.push({targetLabel:labels[i], targetName:c.name, targetType:c.type,
+        fromName:log.fromName, fromIdx:log.fromIdx, sourceType:'パッシブ',
+        params:log.params.join('/'), pct:log.pct, pV, tV, sV, total:pV+tV+sV});
+    });
+  }
+  // Sort: group by source (fromIdx), then by target slot order
+  rows.sort((a,b)=>a.fromIdx-b.fromIdx || labels.indexOf(a.targetLabel)-labels.indexOf(b.targetLabel));
+  // Costume skill row
+  if(hasCostume){
+    const cp=res.costumeParams; const pct=res.costumePct;
+    // Costume applies to member sums, not per-card, so show as aggregate
+    rows.push({targetLabel:'全員', targetName:'メンバー合計', targetType:'',
+      fromName:cards[res.cardDetail[0].idx].name, fromIdx:res.cardDetail[0].idx,
+      sourceType:'衣装', params:cp.join('/'), pct:pct,
+      pV:cp.includes('P')?'*':'—', tV:cp.includes('T')?'*':'—', sV:cp.includes('S')?'*':'—',
+      total:'*', isCostume:true});
+  }
+  if(rows.length===0) return '';
+
+  const fmt=v=>typeof v==='string'?v:(v>0?'+'+v.toLocaleString():'—');
+  const cls=v=>typeof v==='string'?'bt-pct':(v>0?'bt-plus':'bt-zero');
+
+  let h = '<div class="boost-section">';
+  h += '<div class="boost-title">スキル補正内訳</div>';
+  h += '<table class="boost-table"><thead><tr>';
+  h += '<th>補正元</th><th>種別</th><th>対象パラ</th><th>倍率</th><th>対象</th><th>キャラ</th><th>P</th><th>T</th><th>S</th><th>計</th>';
+  h += '</tr></thead><tbody>';
+  let prevFrom = -1;
+  rows.forEach(r=>{
+    const trCls = r.isCostume ? ' class="bt-costume-row"' : '';
+    const isNewGroup = r.fromIdx !== prevFrom;
+    prevFrom = r.fromIdx;
+    h += '<tr'+trCls+(isNewGroup?' style="border-top:1px solid var(--border-light)"':'')+'>';
+    h += '<td class="bt-left bt-from">'+(isNewGroup?r.fromName:'')+'</td>';
+    h += '<td>'+(isNewGroup?'<span style="font-size:0.85em;padding:1px 4px;border-radius:3px;background:'+(r.sourceType==='衣装'?'rgba(100,200,255,0.15);color:#6cf':'rgba(100,255,100,0.1);color:#6f6')+'">'+r.sourceType+'</span>':'')+'</td>';
+    h += '<td class="bt-pct">'+(isNewGroup?r.params:'')+'</td>';
+    h += '<td class="bt-pct">'+(isNewGroup?r.pct+'%':'')+'</td>';
+    h += '<td style="font-size:0.9em;color:var(--text-dim)">'+r.targetLabel+'</td>';
+    h += '<td class="bt-left bt-name">'+(r.targetType?'<span class="type-badge '+typeClass(r.targetType)+'" style="font-size:0.7em;padding:0 3px;margin-right:2px">'+r.targetType.charAt(0)+'</span>':'')+r.targetName+'</td>';
+    h += '<td class="'+cls(r.pV)+'">'+fmt(r.pV)+'</td>';
+    h += '<td class="'+cls(r.tV)+'">'+fmt(r.tV)+'</td>';
+    h += '<td class="'+cls(r.sV)+'">'+fmt(r.sV)+'</td>';
+    h += '<td class="'+cls(r.total)+'">'+fmt(r.total)+'</td>';
+    h += '</tr>';
+  });
+  // Summary row
+  const passiveRows = rows.filter(r=>!r.isCostume);
+  if(passiveRows.length>1){
+    const sumP=passiveRows.reduce((s,r)=>s+(typeof r.pV==='number'?r.pV:0),0);
+    const sumT=passiveRows.reduce((s,r)=>s+(typeof r.tV==='number'?r.tV:0),0);
+    const sumS=passiveRows.reduce((s,r)=>s+(typeof r.sV==='number'?r.sV:0),0);
+    const sumAll=sumP+sumT+sumS;
+    h += '<tr class="bt-total-row"><td colspan="6" style="text-align:right;color:var(--text-mid)">パッシブ合計</td>';
+    h += '<td class="'+cls(sumP)+'">'+fmt(sumP)+'</td>';
+    h += '<td class="'+cls(sumT)+'">'+fmt(sumT)+'</td>';
+    h += '<td class="'+cls(sumS)+'">'+fmt(sumS)+'</td>';
+    h += '<td class="'+cls(sumAll)+'">'+fmt(sumAll)+'</td></tr>';
+  }
+  h += '</tbody></table>';
+  if(hasCostume) h += '<div style="font-size:0.7em;color:var(--text-dim);margin-top:4px">* 衣装スキルはメンバー合計値に乗算（個別値ではなく合計に適用）</div>';
+  h += '</div>';
+  return h;
+}
+
+function renderScore() {
+  const area = document.getElementById('score-area');
+  const leaderIdx = deck[0];
+  const members = deck.slice(1);
+  const filledMembers = members.filter(v=>v!==null);
+
+  if (leaderIdx===null) {
+    area.innerHTML = '<div class="note">リーダーとメンバー5枚を選択すると、自動的にスコアが計算されます。</div>';
+    document.getElementById('timeline-area').innerHTML = '';
+    document.getElementById('boost-area').innerHTML = '';
+    return;
+  }
+
+  const cs = costumeSkills[leaderIdx];
+  const leaderCard = cards[leaderIdx];
+  const condMet = checkCond(cs, filledMembers);
+
+  let condHtml = '';
+  const hasParamBuff = cs.pct>0 && cs.params.length;
+  const hasSS = cs.ssPct>0;
+  if (cs.condType) {
+    const cl = cs.condType==='type' ? cs.condVal+'タイプ'+cs.condCount+'人以上' : cs.condVal+cs.condCount+'人以上';
+    const cc = cs.condType==='type' ? filledMembers.filter(i=>cards[i].type===cs.condVal).length : filledMembers.filter(i=>cards[i].gen.includes(cs.condVal)).length;
+    let ep = [];
+    if (hasParamBuff) ep.push(cs.params.join('/')+' '+cs.pct+'%UP');
+    if (hasSS) ep.push('スコアサポート'+cs.ssPct+'%');
+    if (condMet) condHtml = '<div class="cond-status cond-met">条件成立: '+cl+' (パーティ'+cc+'人) → '+ep.join(' + ')+'</div>';
+    else condHtml = '<div class="cond-status cond-unmet">条件不成立: '+cl+' (パーティ'+cc+'人 / 必要'+cs.condCount+'人)</div>';
+  } else if (hasParamBuff || hasSS) {
+    let ep = [];
+    if (hasParamBuff) ep.push('全員の'+cs.params.join('/')+' '+cs.pct+'%UP');
+    if (hasSS) ep.push('スコアサポート'+cs.ssPct+'%');
+    condHtml = '<div class="cond-status cond-met">無条件: '+ep.join(' + ')+'</div>';
+  } else {
+    condHtml = '<div class="cond-status cond-none">衣装スキル: パラメータ補正なし</div>';
+  }
+
+  if (filledMembers.length < 5) {
+    let pp=0,pt=0,ps=0;
+    filledMembers.forEach(i=>{pp+=cards[i].p;pt+=cards[i].t;ps+=cards[i].s;});
+    area.innerHTML = '<div class="score-panel">'
+      +'<div class="score-skill-info">衣装スキル: '+(leaderCard.costumeSkill||'なし')+'</div>'
+      +condHtml
+      +'<div class="score-params">'
+      +'<div class="score-param-box"><div class="sp-label">パフォーマンス</div><div class="sp-value stat-p">'+pp.toLocaleString()+'</div></div>'
+      +'<div class="score-param-box"><div class="sp-label">テクニック</div><div class="sp-value stat-t">'+pt.toLocaleString()+'</div></div>'
+      +'<div class="score-param-box"><div class="sp-label">センス</div><div class="sp-value stat-s">'+ps.toLocaleString()+'</div></div>'
+      +'</div>'
+      +'<div class="note">残り'+(5-filledMembers.length)+'枚のメンバーを選択してください（'+(filledMembers.length+1)+'枚選択中）</div>'
+      +'</div>';
+    document.getElementById('timeline-area').innerHTML = '';
+    document.getElementById('boost-area').innerHTML = '';
+    return;
+  }
+
+  const res = calcScore(leaderIdx, filledMembers);
+  let bp=0,bt=0,bs=0;
+  filledMembers.forEach(i=>{bp+=cards[i].p;bt+=cards[i].t;bs+=cards[i].s;});
+  const baseTotal = bp+bt+bs;
+  const buffAmt = res.total - baseTotal;
+  const skillLabel = leaderCard.costumeSkillDetail || leaderCard.costumeSkill || 'なし';
+  const abResult = calcActiveBonus(leaderIdx, filledMembers);
+  const activeBonus = abResult.avg;
+  const ss = abResult.ss;
+  const abColor = activeBonus > 0 ? '#6cf' : 'var(--text-dim)';
+  const finalScore = Math.round(res.total * (1 + activeBonus / 100));
+
+  area.innerHTML = '<div class="score-panel">'
+    +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:1px"><span class="score-main" style="font-size:1.4em">'+finalScore.toLocaleString()+'</span>'
+    +'<span style="font-size:0.65em;color:var(--text-dim)">パラメ '+res.total.toLocaleString()+' × +'+activeBonus.toFixed(1)+'%</span></div>'
+    +condHtml
+    +'<div class="score-params">'
+    +'<div class="score-param-box"><div class="sp-label">P</div><div class="sp-value stat-p">'+res.p.toLocaleString()+'</div></div>'
+    +'<div class="score-param-box"><div class="sp-label">T</div><div class="sp-value stat-t">'+res.t.toLocaleString()+'</div></div>'
+    +'<div class="score-param-box"><div class="sp-label">S</div><div class="sp-value stat-s">'+res.s.toLocaleString()+'</div></div>'
+    +'</div>'
+    +'<div style="font-size:0.65em;line-height:1.4;margin:2px 0">'
+    +'<div style="display:flex;justify-content:space-between"><span>基礎 '+baseTotal.toLocaleString()+'</span><span style="color:#6f6">+'+buffAmt.toLocaleString()+' 補正</span></div>'
+    +'</div>'
+    +'<div style="border-top:1px solid var(--border);padding-top:2px;font-size:0.65em;line-height:1.4">'
+    +'<div style="display:flex;justify-content:space-between"><span>アクティブ<span style="opacity:0.6">('+SONG_LENGTH+'秒平均)</span></span><span style="color:#6cf">+'+abResult.pureActiveAvg.toFixed(1)+'%</span></div>'
+    +(ss.constant>0?'<div style="display:flex;justify-content:space-between"><span>衣装SS</span><span style="color:#f90">+'+ss.constant+'%</span></div>':'')
+    +(ss.passiveSS>0?'<div style="display:flex;justify-content:space-between"><span>パッシブSS<span style="opacity:0.6">(バフ)</span></span><span style="color:#f90">+'+ss.passiveSS+'%→実効'+abResult.effectivePassiveSS.toFixed(1)+'%</span></div>':'')
+    +(ss.spAvg>0?'<div style="display:flex;justify-content:space-between"><span>SP<span style="opacity:0.6">(時間加重)</span></span><span style="color:#f6c">+'+ss.spAvg.toFixed(1)+'%</span></div>':'')
+    +'<div style="display:flex;justify-content:space-between;font-weight:bold;border-top:1px solid var(--border);padding-top:2px;margin-top:2px"><span>ボーナス合計</span><span style="color:#6cf">+'+activeBonus.toFixed(1)+'%</span></div>'
+    +'</div>'
+    +'</div>';
+
+  // Render timeline and boost detail into separate full-width areas
+  document.getElementById('timeline-area').innerHTML = renderActiveTimeline(leaderIdx, filledMembers, abResult);
+  document.getElementById('boost-area').innerHTML = renderBoostDetail(res);
+}
+
+// ===== Active Skill Timeline Visualization =====
+function renderActiveTimeline(leaderIdx, memberIdxs, abResult) {
+  if (!abResult.activeMembers || abResult.activeMembers.length === 0) return '';
+  const colors = ['#6cf','#f6c','#6f6','#fc6','#c6f'];
+  // Build per-member timeline data
+  const memberRows = [];
+  for (let mi = 0; mi < abResult.activeMembers.length; mi++) {
+    const m = abResult.activeMembers[mi];
+    const as = activeSkills[m.idx];
+    const row = new Uint8Array(SONG_LENGTH);
+    let eu = m.scoreUp;
+    for (let t = as.interval; t < SONG_LENGTH; t += as.interval) {
+      for (let d = 0; d < as.duration && (t+d) < SONG_LENGTH; d++) row[t+d] = 1;
+    }
+    memberRows.push({name: m.name, scoreUp: eu, row, color: colors[mi % colors.length]});
+  }
+  // Combined timeline (max value + which member wins at each second)
+  const combined = new Float64Array(SONG_LENGTH);
+  const winnerIdx = new Int8Array(SONG_LENGTH).fill(-1);
+  for (let mi = 0; mi < abResult.activeMembers.length; mi++) {
+    const m = abResult.activeMembers[mi];
+    const as = activeSkills[m.idx];
+    for (let t = as.interval; t < SONG_LENGTH; t += as.interval) {
+      for (let d = 0; d < as.duration && (t+d) < SONG_LENGTH; d++) {
+        if (m.scoreUp > combined[t+d]) { combined[t+d] = m.scoreUp; winnerIdx[t+d] = mi; }
+      }
+    }
+  }
+  // Build SVG timeline
+  const W = 1200, H_ROW = 14, PAD = 1, LABEL_W = 140;
+  const barW = W - LABEL_W;
+  const totalH = (memberRows.length + 1) * (H_ROW + PAD) + 30; // +1 for combined, +30 for axis
+  let svg = '<svg viewBox="0 0 '+W+' '+totalH+'" style="width:100%;max-height:140px;display:block">';
+  // Per-member rows
+  for (let mi = 0; mi < memberRows.length; mi++) {
+    const y = mi * (H_ROW + PAD);
+    const mr = memberRows[mi];
+    svg += '<text x="'+(LABEL_W-4)+'" y="'+(y+H_ROW-2)+'" fill="'+mr.color+'" font-size="12" text-anchor="end">'+mr.name+'</text>';
+    svg += '<rect x="'+LABEL_W+'" y="'+y+'" width="'+barW+'" height="'+H_ROW+'" fill="#1a1a2e" rx="2"/>';
+    // Draw active segments
+    let segStart = -1;
+    for (let t = 0; t <= SONG_LENGTH; t++) {
+      const active = t < SONG_LENGTH && mr.row[t];
+      if (active && segStart < 0) segStart = t;
+      if (!active && segStart >= 0) {
+        const x1 = LABEL_W + segStart * barW / SONG_LENGTH;
+        const w = (t - segStart) * barW / SONG_LENGTH;
+        svg += '<rect x="'+x1+'" y="'+y+'" width="'+w+'" height="'+H_ROW+'" fill="'+mr.color+'" opacity="0.7" rx="1"/>';
+        segStart = -1;
+      }
+    }
+    svg += '<text x="'+(LABEL_W+barW+4)+'" y="'+(y+H_ROW-2)+'" fill="'+mr.color+'" font-size="9">'+mr.scoreUp+'%</text>';
+  }
+  // Combined row (effective = max at each second)
+  const cy = memberRows.length * (H_ROW + PAD);
+  svg += '<text x="'+(LABEL_W-4)+'" y="'+(cy+H_ROW-2)+'" fill="#fff" font-size="12" text-anchor="end" font-weight="bold">有効値</text>';
+  svg += '<rect x="'+LABEL_W+'" y="'+cy+'" width="'+barW+'" height="'+H_ROW+'" fill="#1a1a2e" rx="2"/>';
+  // Draw combined: color matches the winning member at each second
+  let segStart2 = -1, segWinner = -1;
+  for (let t = 0; t <= SONG_LENGTH; t++) {
+    const w = t < SONG_LENGTH ? winnerIdx[t] : -1;
+    if (w !== segWinner || t === SONG_LENGTH) {
+      if (segStart2 >= 0 && segWinner >= 0) {
+        const x1 = LABEL_W + segStart2 * barW / SONG_LENGTH;
+        const sw = (t - segStart2) * barW / SONG_LENGTH + 0.5;
+        svg += '<rect x="'+x1+'" y="'+cy+'" width="'+sw+'" height="'+H_ROW+'" fill="'+memberRows[segWinner].color+'" opacity="0.85" rx="0"/>';
+      }
+      segStart2 = t; segWinner = w;
+    }
+  }
+  // Time axis
+  const axisY = (memberRows.length + 1) * (H_ROW + PAD) + 4;
+  svg += '<line x1="'+LABEL_W+'" y1="'+axisY+'" x2="'+(LABEL_W+barW)+'" y2="'+axisY+'" stroke="#555" stroke-width="1"/>';
+  for (let t = 0; t <= SONG_LENGTH; t += 20) {
+    const x = LABEL_W + t * barW / SONG_LENGTH;
+    svg += '<line x1="'+x+'" y1="'+axisY+'" x2="'+x+'" y2="'+(axisY+4)+'" stroke="#555" stroke-width="1"/>';
+    svg += '<text x="'+x+'" y="'+(axisY+14)+'" fill="#888" font-size="9" text-anchor="middle">'+t+'s</text>';
+  }
+  svg += '</svg>';
+  return '<div style="border-top:1px solid var(--border);padding-top:4px">'
+    +'<div style="font-size:0.72em;font-weight:bold;margin-bottom:3px;color:var(--text-dim)">アクティブスキル タイムライン（'+SONG_LENGTH+'秒）</div>'
+    +'<div style="overflow-x:auto">'+svg+'</div>'
+    +'</div>';
+}
+
+// ===== Skill Status =====
+function renderSkillStatus() {
+  const area = document.getElementById('skill-area');
+  const filled = deck.filter(v=>v!==null);
+  if (filled.length === 0) {
+    area.innerHTML = '<div class="note">編成するとスキル発動条件の成立/不成立が表示されます。</div>';
+    return;
+  }
+
+  const partyIdxs = filled;
+  const labels = ['LEADER','メンバー1','メンバー2','メンバー3','メンバー4','メンバー5'];
+  let html = '<div class="skill-panel">';
+
+  for (let slot=0; slot<6; slot++) {
+    const idx = deck[slot];
+    if (idx===null) continue;
+    const c = cards[idx];
+    const isLeader = slot===0;
+    const roleLabel = labels[slot];
+
+    html += '<div class="skill-card">';
+    html += '<div class="skill-card-header">'
+      +'<span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span>'
+      +'<span class="skill-card-name">'+c.name+'</span>'
+      +'<span class="skill-card-role">'+roleLabel+'</span>'
+      +'</div>';
+
+    // Costume skill (leader only)
+    if (isLeader && c.costumeSkill) {
+      const cs = costumeSkills[idx];
+      const memberIdxs = deck.slice(1).filter(v=>v!==null);
+      let statusHtml = '';
+      if (cs.condType) {
+        const met = checkCond(cs, memberIdxs);
+        const cl = cs.condType==='type' ? cs.condVal+'タイプ'+cs.condCount+'人以上' : cs.condVal+cs.condCount+'人以上';
+        const cc = cs.condType==='type' ? memberIdxs.filter(i=>cards[i].type===cs.condVal).length : memberIdxs.filter(i=>cards[i].gen.includes(cs.condVal)).length;
+        if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
+        else statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">あと'+(cs.condCount-cc)+'人</span>';
+      } else {
+        statusHtml = '<span class="skill-status skill-ok">発動</span>';
+      }
+      html += '<div class="skill-row"><span class="skill-tag skill-tag-costume">衣装</span><span class="skill-text">'+(c.costumeSkillDetail||c.costumeSkill)+'</span>'+statusHtml+'</div>';
+    }
+
+    // Passive skill (leader does NOT fire passive - leader uses costume skill)
+    if (c.passive) {
+      if (isLeader) {
+        html += '<div class="skill-row"><span class="skill-tag skill-tag-passive">パッシブ</span><span class="skill-text" style="opacity:0.5">'+c.passive+'</span><span class="skill-status skill-live">衣装スキル枠</span></div>';
+      } else {
+        const cond = parseSkillCond(c.passive);
+        let statusHtml = '';
+        if (cond.condType && cond.checkable) {
+          const met = checkSkillCond(cond, partyIdxs);
+          const cc = condCurrentCount(cond, partyIdxs);
+          if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
+          else statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
+        } else if (cond.condType) {
+          statusHtml = '<span class="skill-status skill-live">ライブ条件</span>';
+        } else {
+          statusHtml = '<span class="skill-status skill-ok">発動</span>';
+        }
+        html += '<div class="skill-row"><span class="skill-tag skill-tag-passive">パッシブ</span><span class="skill-text">'+c.passive+'</span>'+statusHtml+'</div>';
+      }
+    }
+
+    // Active skill + extra condition (leader does NOT fire active - leader uses costume skill)
+    if (c.active) {
+      if (isLeader) {
+        html += '<div class="skill-row"><span class="skill-tag skill-tag-active">アクティブ</span><span class="skill-text" style="opacity:0.5">'+c.active+'</span><span class="skill-status skill-live">衣装スキル枠</span></div>';
+      } else {
+        let activeStatus = '<span class="skill-status skill-ok">発動</span>';
+        html += '<div class="skill-row"><span class="skill-tag skill-tag-active">アクティブ</span><span class="skill-text">'+c.active+'</span>'+activeStatus+'</div>';
+
+        if (c.activeExtra) {
+          const cond = parseSkillCond(c.activeExtra);
+          let extraStatus = '';
+          if (cond.condType && cond.checkable) {
+            const met = checkSkillCond(cond, partyIdxs);
+            const cc = condCurrentCount(cond, partyIdxs);
+            if (met) extraStatus = '<span class="skill-status skill-ok">発動</span>';
+            else extraStatus = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
+          } else if (cond.condType) {
+            extraStatus = '<span class="skill-status skill-live">ライブ条件</span>';
+          }
+          html += '<div class="skill-row" style="padding-left:52px;"><span class="skill-text" style="font-size:0.9em;">┗ '+c.activeExtra+'</span>'+extraStatus+'</div>';
+        }
+      }
+    }
+
+    html += '</div>';
+  }
+
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+// ===== Optimizer =====
+const _tlBuf = new Float64Array(SONG_LENGTH); // shared timeline buffer for calcScoreFast
+let optRunning = false;
+let optDupMode = true; // true=リーダー=メンバー可, false=リーダー≠メンバー
+function calcScoreFast(leaderIdx, memberIdxs) {
+  // Lightweight version of calcScore for brute-force search (no cardDetail)
+  const party = [leaderIdx, ...memberIdxs];
+  const cs = costumeSkills[leaderIdx];
+  // Passive boosts (members only, index 1..5)
+  const pB = new Float64Array(6), tB = new Float64Array(6), sB = new Float64Array(6);
+  for (let pi=1; pi<party.length; pi++) {
+    const ps = passiveSkills[party[pi]];
+    if (ps.isScoreSupport || ps.pct===0 || ps.params.length===0) continue;
+    let met = true;
+    // Condition check: members only (party[1..5]), exclude leader
+    if (ps.condType==='type') { let c=0; for(let j=1;j<party.length;j++) if(cards[party[j]].type===ps.condVal) c++; met=c>=ps.condCount; }
+    else if (ps.condType==='gen') { let c=0; for(let j=1;j<party.length;j++) if(cards[party[j]].gen.includes(ps.condVal)) c++; met=c>=ps.condCount; }
+    if (!met) continue;
+    if (ps.target==='self') {
+      if(ps.params.includes('P')) pB[pi]+=ps.pct;
+      if(ps.params.includes('T')) tB[pi]+=ps.pct;
+      if(ps.params.includes('S')) sB[pi]+=ps.pct;
+    } else {
+      // Find matching members (exclude leader), limit to targetCount
+      let cands=[];
+      for(let ti=1;ti<party.length;ti++){
+        let match=false;
+        if(ps.targetType==='type') match=cards[party[ti]].type===ps.targetVal;
+        else if(ps.targetType==='gen') match=cards[party[ti]].gen.includes(ps.targetVal);
+        if(match) cands.push(ti);
+      }
+      if(ps.targetCount>0 && cands.length>ps.targetCount){
+        cands.sort((a,b)=>{
+          let ia=0,ib=0;
+          if(ps.params.includes('P')){ia+=cards[party[a]].p;ib+=cards[party[b]].p;}
+          if(ps.params.includes('T')){ia+=cards[party[a]].t;ib+=cards[party[b]].t;}
+          if(ps.params.includes('S')){ia+=cards[party[a]].s;ib+=cards[party[b]].s;}
+          return ib-ia;
+        });
+        cands=cands.slice(0,ps.targetCount);
+      }
+      for(const ti of cands){ if(ps.params.includes('P'))pB[ti]+=ps.pct; if(ps.params.includes('T'))tB[ti]+=ps.pct; if(ps.params.includes('S'))sB[ti]+=ps.pct; }
+    }
+  }
+  // Sum MEMBERS ONLY (index 1..5, skip leader index 0)
+  let sp=0,st=0,ss=0;
+  const ep=new Float64Array(6),et=new Float64Array(6),es=new Float64Array(6);
+  for(let i=0;i<party.length;i++){
+    const c=cards[party[i]];
+    ep[i]=Math.round(c.p*(1+pB[i]/100));
+    et[i]=Math.round(c.t*(1+tB[i]/100));
+    es[i]=Math.round(c.s*(1+sB[i]/100));
+  }
+  for(let i=1;i<party.length;i++){sp+=ep[i]; st+=et[i]; ss+=es[i];}
+  // Costume skill multiplier on member sums (self=leader only -> no effect on score)
+  if(cs.pct>0 && cs.params.length) {
+    let condMet=true;
+    if(cs.condType==='type'){ let c=0; for(let j=1;j<party.length;j++) if(cards[party[j]].type===cs.condVal) c++; condMet=c>=cs.condCount; }
+    else if(cs.condType==='gen'){ let c=0; for(let j=1;j<party.length;j++) if(cards[party[j]].gen.includes(cs.condVal)) c++; condMet=c>=cs.condCount; }
+    if(condMet){
+      const mult=1+cs.pct/100;
+      if(cs.params.includes('P'))sp=Math.round(sp*mult);
+      if(cs.params.includes('T'))st=Math.round(st*mult);
+      if(cs.params.includes('S'))ss=Math.round(ss*mult);
+    }
+  }
+  const paramTotal = sp+st+ss;
+  // Inline active bonus calculation (reuse shared buffer for perf)
+  const tl = _tlBuf;
+  tl.fill(0);
+  for(const idx of memberIdxs){
+    const as=activeSkills[idx];
+    if(as.interval<=0||as.scoreUp<=0) continue;
+    let eu=as.scoreUp;
+    if(as.extraScoreUp>0){
+      if(!as.extraCond||!as.extraCond.condType||as.extraCond.condType==='combo'||as.extraCond.condType==='life') eu=as.extraScoreUp;
+      else if(as.extraCond.condType==='type'){let c=0;for(const mi of memberIdxs)if(cards[mi].type===as.extraCond.condVal)c++;if(c>=as.extraCond.condCount)eu=as.extraScoreUp;}
+      else if(as.extraCond.condType==='gen'){let c=0;for(const mi of memberIdxs)if(cards[mi].gen.includes(as.extraCond.condVal))c++;if(c>=as.extraCond.condCount)eu=as.extraScoreUp;}
+    }
+    for(let t=as.interval;t<SONG_LENGTH;t+=as.interval){for(let d=0;d<as.duration&&(t+d)<SONG_LENGTH;d++){if(eu>tl[t+d])tl[t+d]=eu;}}
+  }
+  // Score support (costume)
+  const csc=costumeSkills[leaderIdx];
+  let ssc=0;
+  if(csc.ssPct>0){let cm=true;if(csc.condType==='type'){let c=0;for(let j=1;j<party.length;j++)if(cards[party[j]].type===csc.condVal)c++;cm=c>=csc.condCount;}else if(csc.condType==='gen'){let c=0;for(let j=1;j<party.length;j++)if(cards[party[j]].gen.includes(csc.condVal))c++;cm=c>=csc.condCount;}if(cm)ssc=csc.ssPct;}
+  // Passive score support
+  let pss=0;for(const idx of memberIdxs){const ps2=passiveSkills[idx];if(ps2.isScoreSupport&&ps2.ssPct>0){let cm2=true;if(ps2.condType==='type'){let c=0;for(const mi of memberIdxs)if(cards[mi].type===ps2.condVal)c++;cm2=c>=ps2.condCount;}else if(ps2.condType==='gen'){let c=0;for(const mi of memberIdxs)if(cards[mi].gen.includes(ps2.condVal))c++;cm2=c>=ps2.condCount;}if(cm2)pss+=ps2.ssPct;}}
+  // SP skills
+  let spW=0;for(const idx of memberIdxs){const sp2=spSkills[idx];if(sp2.ssPct>0)spW+=sp2.duration*sp2.ssPct;}
+  const spAvg=Math.round(spW*100/SONG_LENGTH)/100;
+  const otherSS2=Math.round((ssc+spAvg)*100)/100;
+  let totalUp=0;for(let i=0;i<SONG_LENGTH;i++){if(tl[i]>0)totalUp+=tl[i]+pss+otherSS2;else totalUp+=otherSS2;}
+  const bonusAvg=Math.round(totalUp*100/SONG_LENGTH)/100;
+  return Math.round(paramTotal*(1+bonusAvg/100));
+}
+
+function renderOptimizer() {
+  const area = document.getElementById('opt-area');
+  const leaderIdx = deck[0];
+  if (leaderIdx === null) {
+    area.innerHTML = '<div class="note">リーダーを選択すると、最適なメンバー5人を自動探索できます。</div>';
+    return;
+  }
+  if (optRunning) return;
+  const leaderCard = cards[leaderIdx];
+  const noDupActive = !optDupMode ? ' active' : '';
+  const dupActive = optDupMode ? ' active' : '';
+  area.innerHTML = '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">'
+    +'<button class="tier-mode-btn'+noDupActive+'" id="opt-mode-nodup" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:0.7em;">リーダー≠メンバー</button>'
+    +'<button class="tier-mode-btn'+dupActive+'" id="opt-mode-dup" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:0.7em;">リーダー=メンバー可</button>'
+    +'</div>'
+    +'<button class="opt-btn" id="opt-start-btn" style="padding:6px 16px;font-size:0.8em;">'+leaderCard.name+' の最適メンバーを探索する</button>'
+    +'<div id="opt-results-area"></div>';
+  document.getElementById('opt-mode-nodup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=false; renderOptimizer(); });
+  document.getElementById('opt-mode-dup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=true; renderOptimizer(); });
+  document.getElementById('opt-start-btn').addEventListener('click', ()=>startOptimize(leaderIdx));
+}
+
+function startOptimize(leaderIdx) {
+  if (optRunning) return;
+  optRunning = true;
+  const btn = document.getElementById('opt-start-btn');
+  btn.disabled = true;
+  btn.textContent = '探索中...';
+  const resArea = document.getElementById('opt-results-area');
+  resArea.innerHTML = '<div class="opt-progress"><div class="opt-progress-bar"><div class="opt-progress-fill" id="opt-fill"></div></div><div class="opt-progress-text" id="opt-ptext">準備中...</div></div>';
+
+  // Build candidate list based on dup mode
+  const leaderName = cards[leaderIdx].name;
+  const allIdxs = [];
+  if (optDupMode) {
+    for (let i=0; i<cards.length; i++) allIdxs.push(i);
+  } else {
+    for (let i=0; i<cards.length; i++) { if (i!==leaderIdx && cards[i].name!==leaderName) allIdxs.push(i); }
+  }
+  const n = allIdxs.length;
+
+  // Generate combinations C(n,5) in chunks
+  const topN = 5;
+  let best = []; // [{score, members:[idx,...]}]
+  let minBest = -1;
+  let count = 0;
+  const total = comb(n, 5);
+
+  // Iterative combination generator with chunked processing
+  const combo = [0,1,2,3,4];
+  let done = false;
+  const CHUNK = 50000;
+
+  function processChunk() {
+    const t0 = performance.now();
+    for (let c=0; c<CHUNK && !done; c++) {
+      const memberIdxs = [allIdxs[combo[0]], allIdxs[combo[1]], allIdxs[combo[2]], allIdxs[combo[3]], allIdxs[combo[4]]];
+      // Skip if any member shares name with leader or another member
+      const partyNames = new Set();
+      partyNames.add(cards[leaderIdx].name);
+      let dupName = false;
+      for (const mi of memberIdxs) { if (partyNames.has(cards[mi].name)) { dupName=true; break; } partyNames.add(cards[mi].name); }
+      if (dupName) { count++; let ii=4; while(ii>=0&&combo[ii]===n-5+ii)ii--; if(ii<0){done=true;break;} combo[ii]++; for(let jj=ii+1;jj<5;jj++)combo[jj]=combo[jj-1]+1; continue; }
+      const score = calcScoreFast(leaderIdx, memberIdxs);
+      if (score > minBest) {
+        best.push({score, members: memberIdxs});
+        best.sort((a,b) => b.score - a.score);
+        if (best.length > topN) best.length = topN;
+        minBest = best.length >= topN ? best[topN-1].score : -1;
+      }
+      count++;
+      // Next combination
+      let i = 4;
+      while (i >= 0 && combo[i] === n - 5 + i) i--;
+      if (i < 0) { done = true; break; }
+      combo[i]++;
+      for (let j=i+1; j<5; j++) combo[j] = combo[j-1]+1;
+    }
+    // Update progress
+    const pct = Math.min(100, (count/total*100));
+    const fill = document.getElementById('opt-fill');
+    const ptext = document.getElementById('opt-ptext');
+    if (fill) fill.style.width = pct.toFixed(1)+'%';
+    if (ptext) ptext.textContent = count.toLocaleString()+' / '+total.toLocaleString()+' ('+pct.toFixed(1)+'%)';
+
+    if (!done) {
+      setTimeout(processChunk, 0);
+    } else {
+      optRunning = false;
+      btn.disabled = false;
+      btn.textContent = cards[leaderIdx].name+' の最適メンバーを探索する';
+      renderOptResults(leaderIdx, best, count, performance.now()-startTime);
+    }
+  }
+  const startTime = performance.now();
+  setTimeout(processChunk, 0);
+}
+
+function comb(n,k) { let r=1; for(let i=0;i<k;i++) r=r*(n-i)/(i+1); return Math.round(r); }
+
+function renderOptResults(leaderIdx, results, total, elapsed) {
+  const resArea = document.getElementById('opt-results-area');
+  const leaderCard = cards[leaderIdx];
+  let h = '<div class="opt-results">';
+  h += '<div class="opt-note">'+total.toLocaleString()+'通り探索完了 ('+((elapsed||0)/1000).toFixed(1)+'秒)</div>';
+  results.forEach((r,i) => {
+    h += '<div class="opt-result-card" data-rank="'+i+'">';
+    h += '<div class="opt-result-rank">#'+(i+1)+'</div>';
+    h += '<div class="opt-result-score">'+r.score.toLocaleString()+'</div>';
+    h += '<div class="opt-result-members">';
+    r.members.forEach(idx => {
+      const c = cards[idx];
+      h += '<span class="opt-member-chip"><span class="type-badge '+typeClass(c.type)+'" style="font-size:0.8em;padding:0 4px;margin-right:2px">'+c.type.charAt(0)+'</span>'+c.name+(c.costume?'('+c.costume+')':'')+'</span>';
+    });
+    h += '</div></div>';
+  });
+  h += '<div class="opt-note">クリックで編成に反映</div>';
+  h += '</div>';
+  resArea.innerHTML = h;
+  // Click to apply
+  resArea.querySelectorAll('.opt-result-card').forEach(el => {
+    el.addEventListener('click', () => {
+      const rank = parseInt(el.dataset.rank);
+      const r = results[rank];
+      deck[0] = leaderIdx;
+      r.members.forEach((idx,i) => { deck[i+1] = idx; });
+      activeSlot = -1;
+      renderDeck();
+    });
+  });
+}
+
+// ===== Leader TIER (pre-calculated) =====
+const tierCacheNoDup = TIER_DATA.map(r => ({ leaderIdx: r.l, score: r.s, members: r.m }));
+const tierCacheDup = TIER_DATA_DUP.map(r => ({ leaderIdx: r.l, score: r.s, members: r.m }));
+let tierDupMode = false;
+function getActiveTierCache() { return tierDupMode ? tierCacheDup : tierCacheNoDup; }
+
+function toggleTierMode(dup) {
+  tierDupMode = dup;
+  document.getElementById('tier-btn-nodup').classList.toggle('active', !dup);
+  document.getElementById('tier-btn-dup').classList.toggle('active', dup);
+  document.getElementById('mtier-btn-nodup').classList.toggle('active', !dup);
+  document.getElementById('mtier-btn-dup').classList.toggle('active', dup);
+  renderTierResult(getActiveTierCache());
+  buildMemberTier();
+}
+
+function tierLabel(rank, total) {
+  const pct = rank / total;
+  if (pct <= 0.10) return {tier:'S', color:'#ff4466'};
+  if (pct <= 0.25) return {tier:'A', color:'#ffaa33'};
+  if (pct <= 0.50) return {tier:'B', color:'#44cc66'};
+  if (pct <= 0.75) return {tier:'C', color:'#4488ff'};
+  return {tier:'D', color:'#888'};
+}
+
+function renderTierResult(results) {
+  const area = document.getElementById('tier-result');
+  const topScore = results[0].score;
+  let h = '<table class="char-table" style="width:100%"><thead><tr>';
+  h += '<th class="rank-col">#</th><th style="width:50px">TIER</th>';
+  h += '<th>リーダー</th><th>衣装</th><th>タイプ</th><th>所属</th>';
+  h += '<th class="num-col">最大スコア</th><th class="num-col">差分</th>';
+  h += '<th>最適メンバー</th>';
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const c = cards[r.leaderIdx];
+    const tl = tierLabel(i + 1, results.length);
+    const diff = r.score - topScore;
+    h += '<tr>';
+    h += '<td class="rank-col">' + (i+1) + '</td>';
+    h += '<td><span style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:6px;font-weight:bold;font-size:0.9em;background:' + tl.color + '22;color:' + tl.color + ';border:1px solid ' + tl.color + '44">' + tl.tier + '</span></td>';
+    h += '<td class="name-col">' + c.name + '</td>';
+    h += '<td style="font-size:0.82em;color:var(--text-dim)">' + c.costume + '</td>';
+    h += '<td><span class="type-badge ' + typeClass(c.type) + '">' + c.type + '</span></td>';
+    h += '<td>' + c.gen + '</td>';
+    h += '<td class="num-col" style="font-weight:bold">' + r.score.toLocaleString() + '</td>';
+    h += '<td class="num-col" style="color:' + (diff < 0 ? '#f77' : 'var(--text-dim)') + '">' + (diff === 0 ? '---' : diff.toLocaleString()) + '</td>';
+    h += '<td style="font-size:0.78em;color:var(--text-mid)">';
+    if (r.members) {
+      h += r.members.map(idx => cards[idx].name).join(', ');
+    }
+    h += '</td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  area.innerHTML = h;
+}
+
+// ===== Member TIER (pre-calculated) =====
+function buildMemberTier() {
+  const tc = getActiveTierCache();
+  const count = new Array(cards.length).fill(0);
+  const selectedBy = Array.from({length: cards.length}, () => []);
+  for (const r of tc) {
+    if (!r.members) continue;
+    for (const idx of r.members) {
+      count[idx]++;
+      selectedBy[idx].push(r.leaderIdx);
+    }
+  }
+  const results = [];
+  for (let i = 0; i < cards.length; i++) {
+    results.push({ idx: i, count: count[i], leaders: selectedBy[i] });
+  }
+  results.sort((a, b) => b.count - a.count || cards[b.idx].total - cards[a.idx].total);
+  renderMemberTierResult(results);
+}
+
+function renderMemberTierResult(results) {
+  const area = document.getElementById('mtier-result');
+  const total = getActiveTierCache().length;
+  const maxCount = results[0].count;
+  let h = '<table class="char-table" style="width:100%"><thead><tr>';
+  h += '<th class="rank-col">#</th><th style="width:50px">TIER</th>';
+  h += '<th>カード名</th><th>衣装</th><th>タイプ</th><th>所属</th>';
+  h += '<th class="num-col">トータル</th>';
+  h += '<th class="num-col">採用数</th><th class="num-col">採用率</th>';
+  h += '<th>採用リーダー</th>';
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const c = cards[r.idx];
+    const tl = tierLabel(i + 1, results.length);
+    const pct = (r.count / total * 100).toFixed(1);
+    // Bar width proportional to max count
+    const barW = maxCount > 0 ? (r.count / maxCount * 100) : 0;
+    h += '<tr>';
+    h += '<td class="rank-col">' + (i+1) + '</td>';
+    h += '<td><span style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:6px;font-weight:bold;font-size:0.9em;background:' + tl.color + '22;color:' + tl.color + ';border:1px solid ' + tl.color + '44">' + tl.tier + '</span></td>';
+    h += '<td class="name-col">' + c.name + '</td>';
+    h += '<td style="font-size:0.82em;color:var(--text-dim)">' + c.costume + '</td>';
+    h += '<td><span class="type-badge ' + typeClass(c.type) + '">' + c.type + '</span></td>';
+    h += '<td>' + c.gen + '</td>';
+    h += '<td class="num-col">' + c.total.toLocaleString() + '</td>';
+    h += '<td class="num-col" style="font-weight:bold">';
+    h += '<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">';
+    h += '<div style="width:60px;height:12px;background:var(--surface);border-radius:3px;overflow:hidden"><div style="width:' + barW + '%;height:100%;background:' + tl.color + ';border-radius:3px"></div></div>';
+    h += r.count + '/' + total;
+    h += '</div></td>';
+    h += '<td class="num-col">' + pct + '%</td>';
+    h += '<td style="font-size:0.75em;color:var(--text-mid);max-width:300px;white-space:normal;line-height:1.4">';
+    if (r.leaders.length > 0) {
+      h += r.leaders.map(li => cards[li].name).join(', ');
+    } else {
+      h += '<span style="color:var(--text-dim)">---</span>';
+    }
+    h += '</td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  area.innerHTML = h;
+}
+
+// ===== Characters =====
+let charSortKey='genOrder', charSortAsc=true;
+function renderCharTable(){
+  const search=document.getElementById('char-search').value.toLowerCase();
+  const typeF=document.getElementById('char-type-filter').value;
+  const genF=document.getElementById('char-gen-filter').value;
+  let filtered=cards.filter(c=>{
+    if(search&&!c.name.toLowerCase().includes(search)&&!c.costume.toLowerCase().includes(search)) return false;
+    if(typeF&&c.type!==typeF) return false;
+    if(genF&&c.gen!==genF) return false;
+    return true;
+  });
+  const sorted=[...filtered];
+  sorted.sort((a,b)=>{
+    let va=a[charSortKey], vb=b[charSortKey];
+    if(typeof va==='string') return charSortAsc?va.localeCompare(vb):vb.localeCompare(va);
+    return charSortAsc?va-vb:vb-va;
+  });
+  document.getElementById('char-tbody').innerHTML=sorted.map((c,i)=>{
+    const best=c.p>=c.t&&c.p>=c.s?'P':c.t>=c.s?'T':'S';
+    return '<tr><td class="rank-col">'+(i+1)+'</td><td class="name-col">'+c.name+'</td><td style="font-size:0.82em;color:var(--text-dim)">'+c.costume+'</td><td><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></td><td>'+c.gen+'</td><td class="num-col" style="font-weight:bold">'+c.total.toLocaleString()+'</td><td class="num-col stat-p">'+c.p.toLocaleString()+'</td><td class="num-col stat-t">'+c.t.toLocaleString()+'</td><td class="num-col stat-s">'+c.s.toLocaleString()+'</td><td>'+best+'</td><td style="font-size:0.78em;max-width:220px;color:var(--text-mid)">'+c.costumeSkill+'</td></tr>';
+  }).join('');
+  document.querySelectorAll('#char-table th').forEach(th=>{
+    const arrow=th.querySelector('.sort-arrow');
+    if(arrow) arrow.textContent=th.dataset.sort===charSortKey?(charSortAsc?'\\u25B2':'\\u25BC'):'';
+  });
+}
+
+// ===== Init =====
+document.addEventListener('DOMContentLoaded',()=>{
+  const genSet=new Set(cards.map(c=>c.gen));
+  const gens=[...genSet].sort((a,b)=>(GEN_ORDER[a]||99)-(GEN_ORDER[b]||99));
+  [document.getElementById('char-gen-filter'), document.getElementById('pick-gen-filter')].forEach(sel=>{
+    gens.forEach(g=>{const opt=document.createElement('option');opt.value=g;opt.textContent=g;sel.appendChild(opt);});
+  });
+  renderDeck();
+  renderCharTable();
+
+  document.getElementById('deck-area').addEventListener('click',(e)=>{
+    const removeBtn = e.target.closest('.slot-remove');
+    if (removeBtn) { deck[parseInt(removeBtn.dataset.slot)]=null; activeSlot=parseInt(removeBtn.dataset.slot); renderDeck(); return; }
+    const slot = e.target.closest('.deck-slot');
+    if (slot) { activeSlot=parseInt(slot.dataset.slot); renderDeck(); }
+  });
+  document.getElementById('clear-btn').addEventListener('click',()=>{ for(let i=0;i<6;i++) deck[i]=null; activeSlot=-1; renderDeck(); });
+  function toggleDupMode(){ deckDupMode=!deckDupMode; document.getElementById('deck-dup-toggle').classList.toggle('active',deckDupMode); document.getElementById('pick-dup-toggle').classList.toggle('active',deckDupMode); renderPicker(); }
+  document.getElementById('deck-dup-toggle').addEventListener('click', toggleDupMode);
+  document.getElementById('pick-dup-toggle').addEventListener('click', toggleDupMode);
+  document.getElementById('pick-search').addEventListener('input',renderPicker);
+  document.getElementById('pick-type-filter').addEventListener('change',renderPicker);
+  document.getElementById('pick-gen-filter').addEventListener('change',renderPicker);
+  document.getElementById('picker-close').addEventListener('click',()=>{ document.getElementById('pick-search').value=''; activeSlot=-1; renderDeck(); });
+  renderTierResult(getActiveTierCache());
+  buildMemberTier();
+  document.getElementById('picker-overlay').addEventListener('click',(e)=>{ if(e.target.id==='picker-overlay'){document.getElementById('pick-search').value=''; activeSlot=-1;renderDeck();} });
+  document.getElementById('char-search').addEventListener('input',renderCharTable);
+  document.getElementById('char-type-filter').addEventListener('change',renderCharTable);
+  document.getElementById('char-gen-filter').addEventListener('change',renderCharTable);
+  document.querySelectorAll('#char-table th[data-sort]').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const key=th.dataset.sort;
+      if(charSortKey===key) charSortAsc=!charSortAsc;
+      else { charSortKey=key; charSortAsc=key==='name'||key==='costume'||key==='type'||key==='gen'; }
+      renderCharTable();
+    });
+  });
+  document.querySelectorAll('.nav-item').forEach(item=>{
+    item.addEventListener('click',()=>{
+      document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+      item.classList.add('active');
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      document.getElementById('page-'+item.dataset.page).classList.add('active');
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('open');
+    });
+  });
+  document.getElementById('sidebar-toggle').addEventListener('click',()=>{
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  });
+  document.getElementById('sidebar-overlay').addEventListener('click',()=>{
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  });
+});
+</script>
+<div class="picker-overlay" id="picker-overlay">
+  <div class="picker-modal">
+    <div class="picker-modal-header">
+      <div class="picker-modal-title" id="picking-label">カードを選択</div>
+      <button class="picker-modal-close" id="picker-close">&times;</button>
+    </div>
+    <div class="picker-modal-filters">
+      <input id="pick-search" type="text" placeholder="カード名で検索...">
+      <select id="pick-type-filter"><option value="">全タイプ</option><option value="キュート">キュート</option><option value="ピュア">ピュア</option><option value="ハッピー">ハッピー</option></select>
+      <select id="pick-gen-filter"><option value="">全所属</option></select>
+      <button class="tier-mode-btn active" id="pick-dup-toggle" style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:0.78em;white-space:nowrap;">同キャラ可</button>
+    </div>
+    <div class="picker-modal-body">
+      <div class="picker-grid" id="picker-grid"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
