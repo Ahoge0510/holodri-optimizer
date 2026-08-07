@@ -137,7 +137,7 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
 .picker-overlay.open { display:flex; }
 .picker-modal {
   background:var(--bg2); border:1px solid var(--border); border-radius:14px;
-  width:100%; max-width:960px; max-height:90vh; display:flex; flex-direction:column;
+  width:100%; max-width:720px; max-height:85vh; display:flex; flex-direction:column;
   box-shadow:0 20px 60px rgba(0,0,0,0.5);
 }
 .picker-modal-header {
@@ -169,8 +169,8 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
 .filter-bar input::placeholder { color:var(--text-dim); }
 
 .picker-grid {
-  display:grid; grid-template-columns:repeat(2,1fr);
-  gap:8px; overflow-y:auto; padding:4px 2px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:8px; max-height:480px; overflow-y:auto; padding:4px 2px;
 }
 .pick-card {
   background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
@@ -235,8 +235,6 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
 .opt-result-score { font-size:0.95em; font-weight:800; color:var(--accent); display:inline; font-variant-numeric:tabular-nums; }
 .opt-result-members { display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
 .opt-member-chip { font-size:0.68em; padding:1px 5px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-mid); }
-.eligible-card { display:inline-block; padding:2px 8px; margin:2px 3px; border-radius:6px; background:rgba(255,255,255,0.08); border:1px solid var(--border); cursor:pointer; font-size:0.82em; color:var(--text-mid); transition:background 0.15s,border-color 0.15s; }
-.eligible-card:hover { background:rgba(74,108,247,0.15); border-color:var(--accent); color:var(--text); }
 .opt-note { font-size:0.75em; color:var(--text-dim); margin-top:8px; text-align:center; }
 .sdi-label { color:var(--text-dim); }
 .sdi-value { font-weight:600; font-variant-numeric:tabular-nums; }
@@ -361,7 +359,7 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     <div class="nav-item" data-page="characters"><span class="nav-icon">&#128196;</span>カード一覧</div>
     <div class="nav-item" data-page="changelog"><span class="nav-icon">&#128221;</span>更新履歴</div>
   </div>
-  <div class="sidebar-footer">v1.3.0<br>メンバー5人パラメータ + パッシブ + 衣装スキル + アクティブ + スコアサポート</div>
+  <div class="sidebar-footer">v1.2.2<br>メンバー5人パラメータ + パッシブ + 衣装スキル + アクティブ + スコアサポート</div>
 </nav>
 
 <div class="main">
@@ -467,49 +465,41 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     <div style="max-width:700px;">
       <div style="border-left:3px solid var(--accent); padding-left:16px; display:flex; flex-direction:column; gap:20px;">
         <div>
-          <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.3.0 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-07</span></div>
-          <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
-            <li>スキル未発動時に条件を満たせるキャラをボタン表示、タップでそのままメンバーに追加できるように</li>
-            <li>メンバー選択画面でパッシブスキルの内容が確認できるように</li>
-            <li>メンバー選択画面を大きくして2列表示で見やすく</li>
-            <li>キャラの並び順をホロライブ公式サイト準拠に変更</li>
-            <li>衣装スキルの表記を「発動中 / 未発動」に統一してわかりやすく</li>
-          </ul>
-        </div>
-        <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.2.2 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-07</span></div>
           <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
-            <li>ID1期生のキャラが1期生の衣装スキル条件にカウントされていた問題を修正</li>
+            <li>所属判定の部分一致バグを修正（ID1期生が1期生にマッチしていた問題）</li>
           </ul>
         </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.2.1 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-07</span></div>
           <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
             <li>水着大空スバルのタイプをキュート→ピュアに修正</li>
-            <li>最適メンバー検索の結果がすぐに表示されるように高速化</li>
+            <li>最適メンバー検索にTIERキャッシュ即表示を追加（高速化）</li>
           </ul>
         </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.2.0 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-07</span></div>
           <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
             <li>水着さくらみこ・水着星街すいせいを追加（計61枚）</li>
-            <li>編成をURLで共有できるように（XなどのSNSにプレビュー付きで投稿可能）</li>
-            <li>更新履歴タブを追加</li>
+            <li>デッキ共有機能を追加（URLでデッキを共有可能）</li>
+            <li>OGPタグ追加（SNSプレビューカード対応）</li>
+            <li>更新履歴タブ・バージョン管理を追加</li>
           </ul>
         </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.1.0 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-06</span></div>
           <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
-            <li>アクティブスキルの追加条件データを28枚分修正</li>
-            <li>スマホからも使えるようにレイアウトを対応</li>
+            <li>アクティブスキル追加条件を28枚修正</li>
+            <li>スマホ対応（レスポンシブデザイン）</li>
+            <li>Google Analytics導入</li>
           </ul>
         </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.0.0 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-05</span></div>
           <ul style="margin:6px 0 0 16px; padding:0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
-            <li>初版公開（星5カード全59枚対応）</li>
-            <li>編成シミュレーター・リーダーTIER・メンバーTIER・カード一覧の4機能</li>
-            <li>衣装スキル・パッシブスキル・アクティブスキル・スコアサポートを考慮したスコア計算</li>
+            <li>初版公開（星5全59枚対応）</li>
+            <li>編成シミュレーター / リーダーTIER / メンバーTIER / カード一覧</li>
+            <li>衣装スキル・パッシブスキル・アクティブスキル・スコアサポート対応</li>
           </ul>
         </div>
       </div>
@@ -523,15 +513,12 @@ const TIER_DATA = [{"l":37,"s":769684,"m":[3,24,30,46,57]},{"l":40,"s":769684,"m
 const TIER_DATA_DUP = [{"l":37,"s":769684,"m":[3,24,30,46,57]},{"l":40,"s":769684,"m":[3,24,30,46,57]},{"l":32,"s":766303,"m":[3,8,24,30,46]},{"l":48,"s":766303,"m":[3,8,24,30,46]},{"l":41,"s":750145,"m":[1,3,24,46,50]},{"l":60,"s":746109,"m":[12,38,43,45,49]},{"l":44,"s":744301,"m":[3,24,30,46,57]},{"l":50,"s":744301,"m":[3,24,30,46,57]},{"l":55,"s":744301,"m":[3,24,30,46,57]},{"l":42,"s":741731,"m":[5,36,52,56,58]},{"l":57,"s":741123,"m":[3,8,24,30,46]},{"l":46,"s":735981,"m":[3,19,30,48,59]},{"l":34,"s":734176,"m":[12,38,43,45,49]},{"l":47,"s":717195,"m":[5,36,52,56,58]},{"l":53,"s":717195,"m":[5,36,52,56,58]},{"l":39,"s":715034,"m":[4,38,45,49,60]},{"l":58,"s":712889,"m":[5,15,36,52,56]},{"l":36,"s":712577,"m":[5,52,53,56,58]},{"l":51,"s":710310,"m":[12,38,43,45,49]},{"l":54,"s":710310,"m":[12,38,43,45,49]},{"l":31,"s":707697,"m":[5,35,47,56,58]},{"l":59,"s":707397,"m":[3,24,30,46,57]},{"l":43,"s":700507,"m":[4,12,38,39,45]},{"l":49,"s":700507,"m":[4,12,38,39,45]},{"l":56,"s":696322,"m":[5,15,36,52,58]},{"l":52,"s":691206,"m":[5,21,36,56,58]},{"l":38,"s":689460,"m":[4,12,28,53,54]},{"l":35,"s":675904,"m":[12,38,43,45,49]},{"l":29,"s":665565,"m":[8,15,24,46,56]},{"l":45,"s":664343,"m":[4,12,18,49,60]},{"l":17,"s":660862,"m":[1,3,24,46,50]},{"l":20,"s":660862,"m":[1,3,24,46,50]},{"l":19,"s":659509,"m":[3,24,30,46,57]},{"l":27,"s":659509,"m":[3,24,30,46,57]},{"l":28,"s":659509,"m":[3,24,30,46,57]},{"l":25,"s":657693,"m":[1,7,8,19,48]},{"l":33,"s":656542,"m":[1,15,18,56,58]},{"l":26,"s":656287,"m":[10,19,48,49,59]},{"l":30,"s":650447,"m":[3,6,15,56,59]},{"l":21,"s":649157,"m":[8,44,48,56,58]},{"l":18,"s":647231,"m":[12,15,36,52,56]},{"l":22,"s":645320,"m":[14,19,47,48,57]},{"l":24,"s":644618,"m":[1,8,46,48,54]},{"l":23,"s":640882,"m":[2,36,40,52,57]},{"l":16,"s":638476,"m":[4,24,37,46,54]},{"l":8,"s":637526,"m":[3,24,30,46,57]},{"l":7,"s":636476,"m":[3,8,24,30,46]},{"l":10,"s":636476,"m":[3,8,24,30,46]},{"l":11,"s":636476,"m":[3,8,24,30,46]},{"l":14,"s":636476,"m":[3,8,24,30,46]},{"l":15,"s":636476,"m":[3,8,24,30,46]},{"l":13,"s":634835,"m":[8,15,19,48,56]},{"l":12,"s":629057,"m":[3,24,30,46,57]},{"l":9,"s":628280,"m":[3,8,24,30,46]},{"l":5,"s":545794,"m":[3,24,30,46,57]},{"l":0,"s":545375,"m":[3,8,24,30,46]},{"l":1,"s":545375,"m":[3,8,24,30,46]},{"l":2,"s":545375,"m":[3,8,24,30,46]},{"l":4,"s":545375,"m":[3,8,24,30,46]},{"l":6,"s":545375,"m":[3,8,24,30,46]},{"l":3,"s":545089,"m":[8,19,48,56,58]}];
 const TYPE_NAMES = ['キュート','ピュア','ハッピー'];
 const GEN_NAMES = ['0期生','1期生','2期生','3期生','4期生','5期生','ゲーマーズ','holoX','ID1期生','ID2期生','ID3期生','Myth','Promise','Advent','ReGLOSS'];
-const GEN_ORDER = {'0期生':0,'1期生':1,'1期生,ゲーマーズ':1,'2期生':2,'ゲーマーズ':3,'3期生':4,'4期生':5,'5期生':6,'holoX':7,'ID1期生':8,'ID2期生':9,'ID3期生':10,'Myth':11,'Promise':12,'Advent':13,'ReGLOSS':14};
-const MEMBER_ORDER = ['ときのそら','ロボ子さん','アキ・ローゼンタール','赤井はあと','白上フブキ','夏色まつり','百鬼あやめ','癒月ちょこ','大空スバル','AZKi','大神ミオ','さくらみこ','猫又おかゆ','戌神ころね','星街すいせい','兎田ぺこら','不知火フレア','白銀ノエル','宝鐘マリン','角巻わため','常闇トワ','姫森ルーナ','雪花ラミィ','桃鈴ねね','獅白ぼたん','尾丸ポルカ','ラプラス・ダークネス','鷹嶺ルイ','博衣こより','風真いろは','アユンダ・リス','ムーナ・ホシノヴァ','アイラニ・イオフィフティーン','クレイジー・オリー','アーニャ・メルフィッサ','パヴォリア・レイネ','ベスティア・ゼータ','カエラ・コヴァルスキア','こぼ・かなえる','森カリオペ','小鳥遊キアラ','一伊那尓栖','IRyS','オーロ・クロニー','ハコス・ベールズ','シオリ・ノヴェラ','古石ビジュー','ネリッサ・レイヴンクロフト','フワワ・アビスガード','モココ・アビスガード','音乃瀬奏','一条莉々華','儒烏風亭らでん','轟はじめ'];
+const GEN_ORDER = {'0期生':0,'1期生':1,'2期生':2,'ゲーマーズ':3,'1期生,ゲーマーズ':3,'3期生':4,'4期生':5,'5期生':6,'holoX':7,'ID1期生':8,'ID2期生':9,'ID3期生':10,'Myth':11,'Promise':12,'Advent':13,'ReGLOSS':14};
 const cards = DATA.map((c,i) => {
   const g = (c['所属']||'').replace('ReGOSS','ReGLOSS');
-  const mo = MEMBER_ORDER.indexOf(c['キャラ名']);
   return {
     idx:i, name:c['キャラ名'], costume:c['衣装名']||'', type:c['タイプ'],
     gen:g, genArr:g.split(','), genOrder: GEN_ORDER[g] !== undefined ? GEN_ORDER[g] : 99,
-    memberOrder: mo >= 0 ? mo : 99,
     total:c['トータル最大']||0, p:c['パフォーマンス最大']||0, t:c['テクニック最大']||0, s:c['センス最大']||0,
     costumeSkill:c['衣装スキル']||'', costumeSkillDetail:c['衣装スキル(詳細)']||'',
     passive:c['パッシブスキル']||'', active:c['アクティブスキル']||'',
@@ -935,7 +922,7 @@ function renderPicker() {
   const memberUsed = new Set(deck.slice(1).filter(v=>v!==null));
   const usedNames = new Set(usedIdxs().map(i => cards[i].name));
   const grid = document.getElementById('picker-grid');
-  const sorted = [...cards].sort((a,b)=>a.memberOrder-b.memberOrder);
+  const sorted = [...cards].sort((a,b)=>a.genOrder-b.genOrder || a.name.localeCompare(b.name));
   const filtered = sorted.filter(c => {
     if(search && !c.name.toLowerCase().includes(search) && !c.costume.toLowerCase().includes(search)) return false;
     if(typeF && c.type!==typeF) return false;
@@ -954,16 +941,13 @@ function renderPicker() {
       // No dup: block same idx and same name
       isUsed = used.has(c.idx) || usedNames.has(c.name);
     }
-    const isLeaderSlot = activeSlot===0;
-    let skillLine = '';
-    if (isLeaderSlot && c.costumeSkill) skillLine = '<div class="pc-skill">衣装: '+c.costumeSkill+'</div>';
-    else if (!isLeaderSlot && c.passive) skillLine = '<div class="pc-skill">パッシブ: '+c.passive+'</div>';
+    const showSkill = activeSlot===0;
     return '<div class="pick-card '+(isUsed?'used':'')+'" data-idx="'+c.idx+'">'
       +'<div class="pc-type-col"><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></div>'
       +'<div class="pc-header"><span class="pc-name">'+c.name+'</span><span class="pc-costume">'+c.costume+'</span></div>'
       +'<div class="pc-meta"><span>'+c.gen+'</span><span class="pc-total">'+c.total.toLocaleString()+'</span>'
       +'<span class="pc-params">P:'+c.p.toLocaleString()+' T:'+c.t.toLocaleString()+' S:'+c.s.toLocaleString()+'</span></div>'
-      +skillLine
+      +(showSkill && c.costumeSkill ? '<div class="pc-skill">'+c.costumeSkill+'</div>' : '')
       +'</div>';
   }).join('');
   grid.querySelectorAll('.pick-card:not(.used)').forEach(el => {
@@ -1083,27 +1067,8 @@ function renderScore() {
     let ep = [];
     if (hasParamBuff) ep.push(cs.params.join('/')+' '+cs.pct+'%UP');
     if (hasSS) ep.push('スコアサポート'+cs.ssPct+'%');
-    if (condMet) condHtml = '<div class="cond-status cond-met">衣装スキル発動中: '+cl+' (パーティ'+cc+'人) → '+ep.join(' + ')+'</div>';
-    else {
-      condHtml = '<div class="cond-status cond-unmet">衣装スキル未発動: '+cl+' (現在'+cc+'人)';
-      // Show eligible cards
-      const eligible = cards.filter(c => {
-        if (cs.condType==='type') return c.type===cs.condVal;
-        if (cs.condType==='gen') return c.genArr.includes(cs.condVal);
-        return false;
-      }).filter(c => !filledMembers.includes(c.idx) && c.idx!==leaderIdx);
-      if (eligible.length) {
-        condHtml += '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;"><span style="font-size:0.82em;color:var(--text-dim);margin-right:2px;">対象:</span>'
-          + eligible.map(c => {
-            return '<span class="eligible-card" data-idx="'+c.idx+'">'
-              + '<span class="type-badge '+typeClass(c.type)+'" style="font-size:0.8em;padding:0 3px;margin-right:2px;">'+c.type.charAt(0)+'</span>'
-              + c.name
-              + '</span>';
-          }).join('')
-          + '</div>';
-      }
-      condHtml += '</div>';
-    }
+    if (condMet) condHtml = '<div class="cond-status cond-met">条件成立: '+cl+' (パーティ'+cc+'人) → '+ep.join(' + ')+'</div>';
+    else condHtml = '<div class="cond-status cond-unmet">条件不成立: '+cl+' (パーティ'+cc+'人 / 必要'+cs.condCount+'人)</div>';
   } else if (hasParamBuff || hasSS) {
     let ep = [];
     if (hasParamBuff) ep.push('全員の'+cs.params.join('/')+' '+cs.pct+'%UP');
@@ -1128,16 +1093,6 @@ function renderScore() {
       +'</div>';
     document.getElementById('timeline-area').innerHTML = '';
     document.getElementById('boost-area').innerHTML = '';
-    area.querySelectorAll('.eligible-card').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.idx);
-        const emptySlot = deck.findIndex((v,i) => i>0 && v===null);
-        if (emptySlot===-1) return;
-        deck[emptySlot] = idx;
-        activeSlot = -1;
-        renderDeck();
-      });
-    });
     return;
   }
 
@@ -1177,18 +1132,6 @@ function renderScore() {
   // Render timeline and boost detail into separate full-width areas
   document.getElementById('timeline-area').innerHTML = renderActiveTimeline(leaderIdx, filledMembers, abResult);
   document.getElementById('boost-area').innerHTML = renderBoostDetail(res);
-
-  // Eligible card click → add to empty member slot
-  area.querySelectorAll('.eligible-card').forEach(el => {
-    el.addEventListener('click', () => {
-      const idx = parseInt(el.dataset.idx);
-      const emptySlot = deck.findIndex((v,i) => i>0 && v===null);
-      if (emptySlot===-1) return;
-      deck[emptySlot] = idx;
-      activeSlot = -1;
-      renderDeck();
-    });
-  });
 }
 
 // ===== Active Skill Timeline Visualization =====
@@ -1281,7 +1224,7 @@ function renderSkillStatus() {
   const area = document.getElementById('skill-area');
   const filled = deck.filter(v=>v!==null);
   if (filled.length === 0) {
-    area.innerHTML = '<div class="note">編成するとスキルの発動状況が表示されます。</div>';
+    area.innerHTML = '<div class="note">編成するとスキル発動条件の成立/不成立が表示されます。</div>';
     return;
   }
 
@@ -1331,21 +1274,7 @@ function renderSkillStatus() {
           const met = checkSkillCond(cond, partyIdxs);
           const cc = condCurrentCount(cond, partyIdxs);
           if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
-          else {
-            statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
-            const eligible = cards.filter(ec => {
-              if (cond.condType==='type') return ec.type===cond.condVal;
-              if (cond.condType==='gen') return ec.genArr.includes(cond.condVal);
-              return false;
-            }).filter(ec => !partyIdxs.includes(ec.idx));
-            if (eligible.length) {
-              statusHtml += '<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;"><span style="font-size:0.82em;color:var(--text-dim);margin-right:2px;">対象:</span>'
-                + eligible.map(ec => '<span class="eligible-card" data-idx="'+ec.idx+'">'
-                  + '<span class="type-badge '+typeClass(ec.type)+'" style="font-size:0.8em;padding:0 3px;margin-right:2px;">'+ec.type.charAt(0)+'</span>'
-                  + ec.name+'</span>').join('')
-                + '</div>';
-            }
-          }
+          else statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
         } else if (cond.condType) {
           statusHtml = '<span class="skill-status skill-live">ライブ条件</span>';
         } else {
@@ -1384,18 +1313,6 @@ function renderSkillStatus() {
 
   html += '</div>';
   area.innerHTML = html;
-
-  // Eligible card click → add to empty member slot
-  area.querySelectorAll('.eligible-card').forEach(el => {
-    el.addEventListener('click', () => {
-      const idx = parseInt(el.dataset.idx);
-      const emptySlot = deck.findIndex((v,i) => i>0 && v===null);
-      if (emptySlot===-1) return;
-      deck[emptySlot] = idx;
-      activeSlot = -1;
-      renderDeck();
-    });
-  });
 }
 
 // ===== Optimizer =====
@@ -1788,7 +1705,7 @@ function renderMemberTierResult(results) {
 }
 
 // ===== Characters =====
-let charSortKey='memberOrder', charSortAsc=true;
+let charSortKey='genOrder', charSortAsc=true;
 function renderCharTable(){
   const search=document.getElementById('char-search').value.toLowerCase();
   const typeF=document.getElementById('char-type-filter').value;
