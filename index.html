@@ -229,12 +229,12 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
 .opt-progress-fill { height:100%; background:var(--accent); transition:width 0.1s; width:0%; }
 .opt-progress-text { font-size:0.75em; color:var(--text-dim); margin-top:4px; text-align:center; }
 .opt-results { margin-top:12px; }
-.opt-result-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:border-color 0.2s; }
+.opt-result-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; margin-bottom:4px; cursor:pointer; transition:border-color 0.2s; }
 .opt-result-card:hover { border-color:var(--accent); }
-.opt-result-rank { font-size:0.75em; color:var(--text-dim); font-weight:700; }
-.opt-result-score { font-size:1.2em; font-weight:800; color:var(--accent); margin:4px 0; font-variant-numeric:tabular-nums; }
-.opt-result-members { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-.opt-member-chip { font-size:0.72em; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-mid); }
+.opt-result-rank { font-size:0.7em; color:var(--text-dim); font-weight:700; display:inline; margin-right:6px; }
+.opt-result-score { font-size:0.95em; font-weight:800; color:var(--accent); display:inline; font-variant-numeric:tabular-nums; }
+.opt-result-members { display:flex; flex-wrap:wrap; gap:3px; margin-top:3px; }
+.opt-member-chip { font-size:0.68em; padding:1px 5px; border-radius:4px; background:rgba(255,255,255,0.06); color:var(--text-mid); }
 .opt-note { font-size:0.75em; color:var(--text-dim); margin-top:8px; text-align:center; }
 .sdi-label { color:var(--text-dim); }
 .sdi-value { font-weight:600; font-variant-numeric:tabular-nums; }
@@ -1416,7 +1416,7 @@ function renderOptimizer() {
 
   let cacheHtml = '';
   if (cached) {
-    cacheHtml = '<div style="margin:6px 0;">';
+    cacheHtml = '<div style="margin:3px 0;">';
     cacheHtml += renderOptResultEntry(leaderIdx, cached.members, cached.score, 1);
     cacheHtml += '</div>';
   }
@@ -1426,7 +1426,7 @@ function renderOptimizer() {
     +'<button class="tier-mode-btn'+dupActive+'" id="opt-mode-dup" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:0.7em;">リーダー=メンバー可</button>'
     +'</div>'
     + cacheHtml
-    +'<button class="opt-btn" id="opt-start-btn" style="padding:6px 16px;font-size:0.8em;">Top5を全探索する（時間がかかります）</button>'
+    +'<button class="opt-btn" id="opt-start-btn" style="padding:4px 12px;font-size:0.7em;width:auto;display:inline-block;">Top5を全探索する</button>'
     +'<div id="opt-results-area"></div>';
   document.getElementById('opt-mode-nodup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=false; renderOptimizer(); });
   document.getElementById('opt-mode-dup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=true; renderOptimizer(); });
