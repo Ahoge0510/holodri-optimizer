@@ -367,6 +367,7 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
         <span class="deck-count" id="deck-count" style="font-size:0.75em;color:var(--text-dim)">0/6</span>
         <button class="btn" id="clear-btn" style="padding:3px 10px;font-size:0.72em;">リセット</button>
+        <button class="btn" id="share-btn" style="padding:3px 10px;font-size:0.72em;display:none;">共有</button>
         <button class="tier-mode-btn active" id="deck-dup-toggle" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;font-size:0.68em;">同キャラ可</button>
       </div>
     </div>
@@ -789,6 +790,31 @@ let deckDupMode = true; // false=リーダー≠メンバー, true=同キャラ�
 function usedIdxs() { return deck.filter(v=>v!==null); }
 function deckCount() { return deck.filter(v=>v!==null).length; }
 
+// === Share / URL sync ===
+function updateShareBtn() {
+  const btn = document.getElementById('share-btn');
+  btn.style.display = deckCount() > 0 ? '' : 'none';
+}
+function shareDeck() {
+  const ids = deck.map(v => v !== null ? v : '').join(',');
+  const url = location.origin + location.pathname + '?d=' + ids;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('share-btn');
+    btn.textContent = 'コピー済!';
+    setTimeout(() => { btn.textContent = '共有'; }, 1500);
+  }).catch(() => { prompt('URLをコピー:', url); });
+}
+function loadDeckFromURL() {
+  const params = new URLSearchParams(location.search);
+  const d = params.get('d');
+  if (!d) return;
+  const ids = d.split(',');
+  for (let i = 0; i < 6 && i < ids.length; i++) {
+    const v = parseInt(ids[i]);
+    deck[i] = (!isNaN(v) && v >= 0 && v < cards.length) ? v : null;
+  }
+}
+
 function renderDeck() {
   const labels = ['LEADER','メンバー1','メンバー2','メンバー3','メンバー4','メンバー5'];
   document.querySelectorAll('.deck-slot').forEach((el,i) => {
@@ -824,6 +850,7 @@ function renderDeck() {
   renderScore();
   renderSkillStatus();
   renderOptimizer();
+  updateShareBtn();
 }
 
 function renderPicker() {
@@ -1616,8 +1643,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   [document.getElementById('char-gen-filter'), document.getElementById('pick-gen-filter')].forEach(sel=>{
     gens.forEach(g=>{const opt=document.createElement('option');opt.value=g;opt.textContent=g;sel.appendChild(opt);});
   });
+  loadDeckFromURL();
   renderDeck();
   renderCharTable();
+  document.getElementById('share-btn').addEventListener('click', shareDeck);
 
   document.getElementById('deck-area').addEventListener('click',(e)=>{
     const removeBtn = e.target.closest('.slot-remove');
