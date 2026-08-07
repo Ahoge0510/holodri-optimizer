@@ -1409,15 +1409,39 @@ function renderOptimizer() {
   const leaderCard = cards[leaderIdx];
   const noDupActive = !optDupMode ? ' active' : '';
   const dupActive = optDupMode ? ' active' : '';
+
+  // Look up pre-computed result from TIER cache
+  const cache = optDupMode ? tierCacheDup : tierCacheNoDup;
+  const cached = cache.find(r => r.leaderIdx === leaderIdx);
+
+  let cacheHtml = '';
+  if (cached) {
+    cacheHtml = '<div style="margin:6px 0;">';
+    cacheHtml += renderOptResultEntry(leaderIdx, cached.members, cached.score, 1);
+    cacheHtml += '</div>';
+  }
+
   area.innerHTML = '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">'
     +'<button class="tier-mode-btn'+noDupActive+'" id="opt-mode-nodup" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:0.7em;">リーダー≠メンバー</button>'
     +'<button class="tier-mode-btn'+dupActive+'" id="opt-mode-dup" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:0.7em;">リーダー=メンバー可</button>'
     +'</div>'
-    +'<button class="opt-btn" id="opt-start-btn" style="padding:6px 16px;font-size:0.8em;">'+leaderCard.name+' の最適メンバーを探索する</button>'
+    + cacheHtml
+    +'<button class="opt-btn" id="opt-start-btn" style="padding:6px 16px;font-size:0.8em;">Top5を全探索する（時間がかかります）</button>'
     +'<div id="opt-results-area"></div>';
   document.getElementById('opt-mode-nodup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=false; renderOptimizer(); });
   document.getElementById('opt-mode-dup').addEventListener('click', ()=>{ if(optRunning)return; optDupMode=true; renderOptimizer(); });
   document.getElementById('opt-start-btn').addEventListener('click', ()=>startOptimize(leaderIdx));
+  // Click to apply for cached results
+  area.querySelectorAll('.opt-result-card').forEach(el => {
+    el.addEventListener('click', () => {
+      const members = JSON.parse(el.dataset.members);
+      const li = parseInt(el.dataset.leader);
+      deck[0] = li;
+      members.forEach((idx,i) => { deck[i+1] = idx; });
+      activeSlot = -1;
+      renderDeck();
+    });
+  });
 }
 
 function startOptimize(leaderIdx) {
@@ -1497,6 +1521,19 @@ function startOptimize(leaderIdx) {
 }
 
 function comb(n,k) { let r=1; for(let i=0;i<k;i++) r=r*(n-i)/(i+1); return Math.round(r); }
+
+function renderOptResultEntry(leaderIdx, members, score, rank) {
+  let h = '<div class="opt-result-card" style="cursor:pointer;" data-members="'+JSON.stringify(members)+'" data-leader="'+leaderIdx+'">';
+  h += '<div class="opt-result-rank">#'+rank+'</div>';
+  h += '<div class="opt-result-score">'+score.toLocaleString()+'</div>';
+  h += '<div class="opt-result-members">';
+  members.forEach(idx => {
+    const c = cards[idx];
+    h += '<span class="opt-member-chip"><span class="type-badge '+typeClass(c.type)+'" style="font-size:0.8em;padding:0 4px;margin-right:2px">'+c.type.charAt(0)+'</span>'+c.name+(c.costume?'('+c.costume+')':'')+'</span>';
+  });
+  h += '</div></div>';
+  return h;
+}
 
 function renderOptResults(leaderIdx, results, total, elapsed) {
   const resArea = document.getElementById('opt-results-area');
