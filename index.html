@@ -275,21 +275,61 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
 
 @media (max-width:960px) {
   .builder-row { grid-template-columns:1fr; }
-  .builder-right { max-height:none; }
 }
 @media (max-width:768px) {
+  /* Sidebar → hamburger */
   .sidebar { transform:translateX(-100%); } .sidebar.open { transform:translateX(0); }
   .sidebar-toggle { display:flex; } .sidebar-overlay.open { display:block; }
-  .main { margin-left:0; } .page { padding:16px; padding-top:56px; }
+  .main { margin-left:0; } .page { padding:10px 10px; padding-top:50px; }
+  /* Deck: 3x2 */
   .builder-row { grid-template-columns:1fr; }
-  .deck-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
-  .deck-slot { min-height:70px; padding:6px 4px; } .slot-name { font-size:0.75em; }
-  .picker-grid { grid-template-columns:1fr; max-height:400px; }
-  .score-params { grid-template-columns:1fr; } .score-details { grid-template-columns:1fr; }
-  .score-main { font-size:2em; }
-  .char-table { font-size:0.78em; } .char-table td, .char-table th { padding:8px 6px; }
+  .deck-grid { grid-template-columns:repeat(3,1fr); gap:6px; }
+  .deck-slot { min-height:60px; padding:4px 3px; }
+  .slot-name { font-size:0.72em; } .slot-costume { font-size:0.58em; }
+  .slot-params { font-size:0.6em; gap:2px; }
+  /* Score */
+  .score-panel { padding:8px; }
+  .score-params { grid-template-columns:repeat(3,1fr); }
+  .score-main { font-size:1.6em; }
+  /* Skill cards */
+  .skill-card { padding:3px 6px; }
+  .skill-card-name { font-size:0.72em; }
+  .skill-row { font-size:0.62em; flex-wrap:wrap; }
+  .skill-tag { min-width:42px; padding:1px 4px; font-size:0.7em; }
+  .skill-status { font-size:0.68em; padding:1px 4px; }
+  /* Timeline */
+  .builder-full { overflow-x:auto; }
+  /* Boost table */
+  .boost-table { font-size:0.65em; }
+  .boost-table th { padding:3px 2px; font-size:0.85em; }
+  .boost-table td { padding:2px 2px; }
+  .boost-table .bt-name { max-width:60px; }
+  .boost-table .bt-from { max-width:60px; }
+  /* Picker: fullscreen on mobile */
+  .picker-overlay { padding:0; }
+  .picker-modal { max-width:100%; max-height:100vh; border-radius:0; height:100%; }
+  .picker-modal-body { padding:8px 10px 10px; }
+  .picker-grid { grid-template-columns:1fr; max-height:none; }
+  .pick-card { padding:8px 10px; }
+  .pc-name { font-size:0.85em; } .pc-costume { font-size:0.72em; }
+  /* Opt area */
+  .opt-btn { font-size:0.78em; padding:8px 12px; }
+  /* Char table */
+  .char-table { font-size:0.75em; } .char-table td, .char-table th { padding:6px 4px; }
+  /* Tier buttons */
+  .tier-mode-btn { font-size:0.75em !important; padding:4px 10px !important; }
 }
-@media (max-width:480px) { .deck-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:480px) {
+  .deck-grid { grid-template-columns:repeat(3,1fr); gap:4px; }
+  .deck-slot { min-height:50px; }
+  .slot-label { font-size:0.6em; } .slot-name { font-size:0.65em; }
+  .slot-params { display:none; }
+  .type-badge { font-size:0.6em; padding:1px 6px; }
+  .score-main { font-size:1.4em; }
+  .boost-section { overflow-x:auto; }
+  .boost-table { min-width:500px; }
+  .page { padding:6px 6px; padding-top:48px; }
+}
 </style>
 </head>
 <body>
