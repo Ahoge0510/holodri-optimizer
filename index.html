@@ -333,6 +333,9 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
   .char-table { font-size:0.75em; } .char-table td, .char-table th { padding:6px 4px; }
   /* Tier buttons */
   .tier-mode-btn { font-size:0.75em !important; padding:4px 10px !important; }
+  /* Owned grid */
+  .owned-grid { grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:6px; }
+  .owned-card { padding:8px 6px; }
 }
 @media (max-width:480px) {
   .deck-grid { grid-template-columns:repeat(3,1fr); gap:4px; }
@@ -345,6 +348,13 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
   .boost-table { min-width:500px; }
   .page { padding:6px 6px; padding-top:48px; }
 }
+.owned-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+.owned-card { padding:10px 8px; border-radius:10px; border:1px solid var(--border); background:var(--card); cursor:pointer; text-align:center; transition:all 0.15s; position:relative; }
+.owned-card:hover { border-color:rgba(0,212,255,0.4); transform:translateY(-1px); }
+.owned-card.unowned { opacity:0.35; filter:grayscale(0.8); }
+.owned-card .oc-name { font-size:0.85em; font-weight:600; margin-bottom:2px; }
+.owned-card .oc-costume { font-size:0.72em; color:var(--text-dim); }
+.owned-card .oc-check { position:absolute; top:4px; right:6px; font-size:1.1em; }
 </style>
 </head>
 <body>
@@ -362,9 +372,10 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     <div class="nav-item" data-page="tier"><span class="nav-icon">&#127942;</span>リーダーTIER</div>
     <div class="nav-item" data-page="member-tier"><span class="nav-icon">&#127941;</span>メンバーTIER</div>
     <div class="nav-item" data-page="characters"><span class="nav-icon">&#128196;</span>カード一覧</div>
+    <div class="nav-item" data-page="owned"><span class="nav-icon">&#128188;</span>所持カード</div>
     <div class="nav-item" data-page="changelog"><span class="nav-icon">&#128221;</span>更新履歴</div>
   </div>
-  <div class="sidebar-footer">v1.4.1<br>メンバー5人パラメータ + パッシブ + 衣装スキル + アクティブ + スコアサポート</div>
+  <div class="sidebar-footer">v1.5.0<br>メンバー5人パラメータ + パッシブ + 衣装スキル + アクティブ + スコアサポート</div>
 </nav>
 
 <div class="main">
@@ -384,9 +395,11 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
         <span class="deck-count" id="deck-count" style="font-size:0.75em;color:var(--text-dim)">0/6</span>
         <button class="btn" id="clear-btn" style="padding:3px 10px;font-size:0.72em;">リセット</button>
         <button class="btn" id="share-btn" style="padding:3px 10px;font-size:0.72em;display:none;">共有</button>
+        <button class="btn" id="save-team-btn" style="padding:3px 10px;font-size:0.72em;display:none;">保存</button>
         <button class="tier-mode-btn active" id="deck-dup-toggle" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;font-size:0.68em;">同キャラ可</button>
       </div>
     </div>
+    <div id="saved-teams-area" style="margin-top:6px;"></div>
     <!-- Row 2: Score left + Skills right -->
     <div class="builder-row">
     <div class="builder-left">
@@ -464,12 +477,52 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     </div>
   </div>
 
+  <div class="page" id="page-owned">
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.3em; margin-bottom:6px;">所持カード管理</h2>
+      <div style="font-size:0.85em; color:var(--text-dim); margin-bottom:10px;">
+        カードをタップして所持/未所持を切り替え。データはブラウザに自動保存されます。
+      </div>
+      <div id="owned-counter" style="font-size:0.9em; color:var(--accent); margin-bottom:10px;"></div>
+      <div class="filter-bar">
+        <input id="owned-search" type="text" placeholder="カード名で検索...">
+        <select id="owned-type-filter"><option value="">全タイプ</option><option value="キュート">キュート</option><option value="ピュア">ピュア</option><option value="ハッピー">ハッピー</option></select>
+        <select id="owned-gen-filter"><option value="">全所属</option></select>
+        <select id="owned-status-filter"><option value="">全カード</option><option value="owned">所持のみ</option><option value="unowned">未所持のみ</option></select>
+      </div>
+    </div>
+    <div id="owned-grid" class="owned-grid"></div>
+    <div id="owned-best-section" style="margin-top:24px; display:none;">
+      <h3 style="font-size:1.1em; margin-bottom:8px; color:var(--accent);">&#128081; 所持カード最適編成</h3>
+      <div style="font-size:0.82em; color:var(--text-dim); margin-bottom:10px;">所持カードから最適な編成（リーダー1＋メンバー5人）を探索します。カード数が多いと数秒かかる場合があります。</div>
+      <button id="owned-best-start" class="tier-mode-btn active" style="padding:8px 20px;font-size:0.9em;margin-bottom:10px;">探索開始</button>
+      <div id="owned-best-progress" style="display:none;margin-bottom:10px;"><div class="opt-progress"><div class="opt-progress-bar"><div class="opt-progress-fill" id="owned-best-fill"></div></div><div class="opt-progress-text" id="owned-best-ptext">準備中...</div></div></div>
+      <div style="margin-bottom:10px;">
+        <button class="tier-mode-btn" id="owned-best-nodup">重複なし</button>
+        <button class="tier-mode-btn active" id="owned-best-dup">重複あり</button>
+      </div>
+      <div id="owned-best-result"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-changelog">
     <div style="margin-bottom:20px;">
       <h2 style="font-size:1.3em; margin-bottom:6px;">更新履歴</h2>
     </div>
     <div style="max-width:700px;">
       <div style="border-left:3px solid var(--accent); padding-left:16px; display:flex; flex-direction:column; gap:20px;">
+        <div>
+          <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.5.0 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-09</span></div>
+          <div style="margin:6px 0 0 0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
+            <div style="color:#7cc87c; font-weight:600; margin-top:4px;">新機能</div>
+            <ul style="margin:4px 0 0 16px; padding:0;">
+              <li>所持カード管理機能を追加（サイドバー「所持カード」タブ）</li>
+              <li>カードピッカーに「所持のみ」フィルタを追加</li>
+              <li>所持カードでの最適編成TOP10表示＆ワンクリック適用</li>
+              <li>チーム保存機能を追加（最大5チーム、localStorage保存）</li>
+            </ul>
+          </div>
+        </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.4.1 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-09</span></div>
           <div style="margin:6px 0 0 0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
@@ -596,6 +649,16 @@ const cards = DATA.map((c,i) => {
     activeExtra:c['アクティブ追加条件']||'', sp:c['スペシャルスキル']||''
   };
 });
+
+// ===== Owned cards =====
+let ownedSet = (function(){ try { return new Set(JSON.parse(localStorage.getItem('holodri_owned') || '[]')); } catch(e) { return new Set(); } })();
+function saveOwned() { localStorage.setItem('holodri_owned', JSON.stringify([...ownedSet])); }
+function isOwned(card) { return ownedSet.has(card.sid); }
+function toggleOwned(card) {
+  if (ownedSet.has(card.sid)) ownedSet.delete(card.sid);
+  else ownedSet.add(card.sid);
+  saveOwned();
+}
 
 // ===== Costume skill parser (for leader score calc) =====
 function parseCostumeSkill(text, detailText) {
@@ -923,7 +986,71 @@ function deckCount() { return deck.filter(v=>v!==null).length; }
 // === Share / URL sync ===
 function updateShareBtn() {
   const btn = document.getElementById('share-btn');
-  btn.style.display = deckCount() > 0 ? '' : 'none';
+  const saveBtn = document.getElementById('save-team-btn');
+  const hasDeck = deckCount() > 0;
+  btn.style.display = hasDeck ? '' : 'none';
+  saveBtn.style.display = hasDeck ? '' : 'none';
+}
+
+// === Saved teams ===
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const MAX_TEAMS = 5;
+function getSavedTeams() { try { return JSON.parse(localStorage.getItem('holodri_teams') || '[]'); } catch(e) { return []; } }
+function setSavedTeams(teams) { localStorage.setItem('holodri_teams', JSON.stringify(teams)); }
+function saveCurrentTeam() {
+  const teams = getSavedTeams();
+  if (teams.length >= MAX_TEAMS) { alert('保存上限(' + MAX_TEAMS + 'チーム)に達しています。不要なチームを削除してください。'); return; }
+  const sids = deck.map(v => v !== null ? cards[v].sid : null);
+  const leaderName = deck[0] !== null ? cards[deck[0]].name : '未設定';
+  const name = prompt('チーム名を入力:', leaderName + 'チーム');
+  if (name === null) return;
+  teams.push({name: name || ('チーム' + (teams.length + 1)), sids: sids});
+  setSavedTeams(teams);
+  renderSavedTeams();
+}
+function loadTeam(idx) {
+  const teams = getSavedTeams();
+  if (idx < 0 || idx >= teams.length) return;
+  const t = teams[idx];
+  for (let i = 0; i < 6; i++) {
+    if (t.sids[i] !== null) {
+      const cardIdx = cards.findIndex(c => c.sid === t.sids[i]);
+      deck[i] = cardIdx >= 0 ? cardIdx : null;
+    } else { deck[i] = null; }
+  }
+  activeSlot = -1;
+  renderDeck();
+}
+function deleteTeam(idx) {
+  const teams = getSavedTeams();
+  if (idx < 0 || idx >= teams.length) return;
+  teams.splice(idx, 1);
+  setSavedTeams(teams);
+  renderSavedTeams();
+}
+function renderSavedTeams() {
+  const area = document.getElementById('saved-teams-area');
+  const teams = getSavedTeams();
+  if (teams.length === 0) { area.innerHTML = ''; return; }
+  let h = '<div style="display:flex;flex-direction:column;gap:4px;">';
+  for (let i = 0; i < teams.length; i++) {
+    const t = teams[i];
+    const members = t.sids.map((sid, j) => {
+      if (sid === null) return '<span style="color:var(--text-dim)">-</span>';
+      const c = cards.find(c => c.sid === sid);
+      return c ? '<span class="type-badge ' + typeClass(c.type) + '" style="font-size:0.7em;padding:1px 4px;">' + c.name + '</span>' : '-';
+    }).join(' ');
+    h += '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);font-size:0.78em;">';
+    h += '<span style="font-weight:600;min-width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(t.name) + '</span>';
+    h += '<span style="flex:1;overflow:hidden;">' + members + '</span>';
+    h += '<button class="btn load-team-btn" data-idx="' + i + '" style="padding:2px 8px;font-size:0.8em;">読込</button>';
+    h += '<button class="btn del-team-btn" data-idx="' + i + '" style="padding:2px 8px;font-size:0.8em;color:#f77;">削除</button>';
+    h += '</div>';
+  }
+  h += '</div>';
+  area.innerHTML = h;
+  area.querySelectorAll('.load-team-btn').forEach(btn => { btn.addEventListener('click', () => loadTeam(parseInt(btn.dataset.idx))); });
+  area.querySelectorAll('.del-team-btn').forEach(btn => { btn.addEventListener('click', () => deleteTeam(parseInt(btn.dataset.idx))); });
 }
 function shareDeck() {
   const ids = deck.map(v => v !== null ? cards[v].sid : '').join(',');
@@ -1006,10 +1133,12 @@ function renderPicker() {
   });
   // Determine costume skill condition for highlighting
   const cs = leaderIdx!==null ? costumeSkills[leaderIdx] : null;
+  const ownedOnly = document.getElementById('pick-owned-toggle').classList.contains('active');
   const filtered = sorted.filter(c => {
     if(search && !fuzzyMatch(c.name,search) && !fuzzyMatch(c.costume,search) && !c.yomi.includes(search)) return false;
     if(typeF && c.type!==typeF) return false;
     if(genF && !c.genArr.includes(genF)) return false;
+    if(ownedOnly && !isOwned(c)) return false;
     return true;
   });
   grid.innerHTML = filtered.map(c => {
@@ -1891,17 +2020,237 @@ function renderCharTable(){
   });
 }
 
+// ===== Owned grid =====
+function renderOwnedGrid() {
+  const search = toHira(document.getElementById('owned-search').value.toLowerCase());
+  const typeF = document.getElementById('owned-type-filter').value;
+  const genF = document.getElementById('owned-gen-filter').value;
+  const statusF = document.getElementById('owned-status-filter').value;
+  const filtered = cards.filter(c => {
+    if (search && !fuzzyMatch(c.name,search) && !fuzzyMatch(c.costume,search) && !c.yomi.includes(search)) return false;
+    if (typeF && c.type !== typeF) return false;
+    if (genF && !c.genArr.includes(genF)) return false;
+    if (statusF === 'owned' && !isOwned(c)) return false;
+    if (statusF === 'unowned' && isOwned(c)) return false;
+    return true;
+  });
+  filtered.sort((a,b) => a.memberOrder - b.memberOrder);
+  document.getElementById('owned-counter').textContent = ownedSet.size + ' / ' + cards.length + ' 枚所持';
+  document.getElementById('owned-grid').innerHTML = filtered.map(c => {
+    const owned = isOwned(c);
+    return '<div class="owned-card ' + (owned ? '' : 'unowned') + '" data-sid="' + c.sid + '">'
+      + '<div class="oc-check">' + (owned ? '✅' : '') + '</div>'
+      + '<div><span class="type-badge ' + typeClass(c.type) + '">' + c.type + '</span></div>'
+      + '<div class="oc-name">' + c.name + '</div>'
+      + '<div class="oc-costume">' + c.costume + '</div>'
+      + '</div>';
+  }).join('');
+  document.getElementById('owned-grid').querySelectorAll('.owned-card').forEach(el => {
+    el.addEventListener('click', () => {
+      const sid = parseInt(el.dataset.sid);
+      const card = cards.find(c => c.sid === sid);
+      if (card) { toggleOwned(card); renderOwnedGrid(); }
+    });
+  });
+  // Show/hide best team section based on owned count
+  document.getElementById('owned-best-section').style.display = ownedSet.size >= 5 ? '' : 'none';
+}
+
+// ===== Owned best team =====
+let ownedBestDupMode = true;
+let ownedBestRunning = false;
+let ownedBestCacheDup = [];
+let ownedBestCacheNoDup = [];
+let ownedBestLastSids = null; // Set of sids used in last computation
+function ownedBestCacheValid() {
+  if (!ownedBestLastSids || ownedBestCacheDup.length === 0) return false;
+  // If cards were added, must recalculate
+  for (const sid of ownedSet) { if (!ownedBestLastSids.has(sid)) return false; }
+  // Current is subset of last (only removals). Check if removed cards appear in results
+  const removedSids = new Set();
+  for (const sid of ownedBestLastSids) { if (!ownedSet.has(sid)) removedSids.add(sid); }
+  if (removedSids.size === 0) return true; // identical sets
+  // Check all results for removed card sids
+  const allResults = [...ownedBestCacheDup, ...ownedBestCacheNoDup];
+  for (const r of allResults) {
+    if (removedSids.has(cards[r.leaderIdx].sid)) return false;
+    for (const mi of r.members) { if (removedSids.has(cards[mi].sid)) return false; }
+  }
+  return true;
+}
+function renderOwnedBestTeam() {
+  if (ownedSet.size < 5) return;
+  if (ownedBestRunning) return; // already computing
+  // Check cache validity
+  if (ownedBestCacheValid()) {
+    renderOwnedBestResult(ownedBestDupMode ? ownedBestCacheDup : ownedBestCacheNoDup);
+    return;
+  }
+  ownedBestRunning = true;
+  const snapshotSids = new Set(ownedSet);
+  const area = document.getElementById('owned-best-result');
+  const prog = document.getElementById('owned-best-progress');
+  const fill = document.getElementById('owned-best-fill');
+  const ptext = document.getElementById('owned-best-ptext');
+  prog.style.display = '';
+  fill.style.width = '0%';
+  ptext.textContent = '準備中...';
+  area.innerHTML = '';
+
+  // Build owned index list
+  const ownedIdxs = [];
+  cards.forEach((c, i) => { if (ownedSet.has(c.sid)) ownedIdxs.push(i); });
+  const N = ownedIdxs.length;
+
+  const topN = 10;
+  let bestDup = []; // [{score, leaderIdx, members}]
+  let bestNoDup = [];
+  let minDup = -1, minNoDup = -1;
+
+  // Iterate over all leaders
+  let leaderPos = 0;
+  let combo = null;
+  let candidateIdxs = null;
+  let cn = 0;
+  let totalCombos = 0;
+  let processedCombos = 0;
+  let done = false;
+  const CHUNK = 50000;
+
+  // Precompute total: dup mode uses all N as candidates, nodup excludes leader+same name
+  // Use N (dup) as upper bound for progress since we compute both in 1 pass
+  for (let li = 0; li < N; li++) {
+    if (N >= 5) totalCombos += comb(N, 5);
+  }
+
+  function nextLeader() {
+    if (leaderPos >= N) { done = true; return false; }
+    // Dup mode: all owned cards are candidates (including leader itself)
+    candidateIdxs = ownedIdxs.slice();
+    cn = candidateIdxs.length;
+    if (cn < 5) { leaderPos++; return nextLeader(); }
+    combo = [0,1,2,3,4];
+    return true;
+  }
+
+  nextLeader();
+
+  function processChunk() {
+    if (done) { finalize(); return; }
+    for (let c = 0; c < CHUNK && !done; c++) {
+      const leaderIdx = ownedIdxs[leaderPos];
+      const memberIdxs = [candidateIdxs[combo[0]], candidateIdxs[combo[1]], candidateIdxs[combo[2]], candidateIdxs[combo[3]], candidateIdxs[combo[4]]];
+      // Check for duplicate names among members
+      const mNames = new Set();
+      let memberDupName = false;
+      for (const mi of memberIdxs) { if (mNames.has(cards[mi].name)) { memberDupName = true; break; } mNames.add(cards[mi].name); }
+      if (!memberDupName) {
+        const score = calcScoreFast(leaderIdx, memberIdxs);
+        // Dup mode: same card as leader in members OK, member-member same name NG (already filtered)
+        if (score > minDup) {
+          bestDup.push({score, leaderIdx, members: memberIdxs.slice()});
+          bestDup.sort((a,b) => b.score - a.score);
+          if (bestDup.length > topN) bestDup.length = topN;
+          minDup = bestDup.length >= topN ? bestDup[topN-1].score : -1;
+        }
+        // NoDup mode: leader idx and leader same-name cards excluded from members
+        const leaderName = cards[leaderIdx].name;
+        let leaderMemberDup = false;
+        for (const mi of memberIdxs) { if (mi === leaderIdx || cards[mi].name === leaderName) { leaderMemberDup = true; break; } }
+        if (!leaderMemberDup && score > minNoDup) {
+          bestNoDup.push({score, leaderIdx, members: memberIdxs.slice()});
+          bestNoDup.sort((a,b) => b.score - a.score);
+          if (bestNoDup.length > topN) bestNoDup.length = topN;
+          minNoDup = bestNoDup.length >= topN ? bestNoDup[topN-1].score : -1;
+        }
+      }
+      processedCombos++;
+      // Next combination
+      let i = 4;
+      while (i >= 0 && combo[i] === cn - 5 + i) i--;
+      if (i < 0) {
+        leaderPos++;
+        if (!nextLeader()) break;
+      } else {
+        combo[i]++;
+        for (let j = i+1; j < 5; j++) combo[j] = combo[j-1] + 1;
+      }
+    }
+    // Update progress
+    const pct = totalCombos > 0 ? Math.min(100, processedCombos / totalCombos * 100) : 100;
+    fill.style.width = pct.toFixed(1) + '%';
+    ptext.textContent = processedCombos.toLocaleString() + ' / ' + totalCombos.toLocaleString() + ' (' + pct.toFixed(1) + '%)';
+    if (!done) setTimeout(processChunk, 0);
+    else finalize();
+  }
+
+  function finalize() {
+    ownedBestRunning = false;
+    prog.style.display = 'none';
+    ownedBestCacheDup = bestDup;
+    ownedBestCacheNoDup = bestNoDup;
+    ownedBestLastSids = new Set(snapshotSids);
+    renderOwnedBestResult(ownedBestDupMode ? bestDup : bestNoDup);
+  }
+
+  setTimeout(processChunk, 0);
+}
+
+function renderOwnedBestResult(results) {
+  const area = document.getElementById('owned-best-result');
+  if (results.length === 0) {
+    area.innerHTML = '<div style="color:var(--text-dim);font-size:0.9em;">該当する編成が見つかりませんでした。所持カードを5枚以上登録してください。</div>';
+    return;
+  }
+  const topScore = results[0].score;
+  let h = '<table class="char-table" style="width:100%"><thead><tr>';
+  h += '<th class="rank-col">#</th><th>リーダー</th><th>衣装</th><th>タイプ</th>';
+  h += '<th class="num-col">スコア</th><th class="num-col">差分</th>';
+  h += '<th>メンバー</th><th style="width:70px">セット</th>';
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const c = cards[r.leaderIdx];
+    const diff = r.score - topScore;
+    h += '<tr>';
+    h += '<td class="rank-col">' + (i+1) + '</td>';
+    h += '<td class="name-col">' + c.name + '</td>';
+    h += '<td style="font-size:0.82em;color:var(--text-dim)">' + c.costume + '</td>';
+    h += '<td><span class="type-badge ' + typeClass(c.type) + '">' + c.type + '</span></td>';
+    h += '<td class="num-col" style="font-weight:bold">' + r.score.toLocaleString() + '</td>';
+    h += '<td class="num-col" style="color:' + (diff < 0 ? '#f77' : 'var(--text-dim)') + '">' + (diff === 0 ? '---' : diff.toLocaleString()) + '</td>';
+    h += '<td style="font-size:0.78em;color:var(--text-mid)">' + r.members.map(idx => cards[idx].name).join(', ') + '</td>';
+    h += '<td><button class="tier-mode-btn owned-best-apply" data-rank="' + i + '" style="padding:3px 8px;font-size:0.78em;">&#9654; 適用</button></td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  area.innerHTML = h;
+  area.querySelectorAll('.owned-best-apply').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rank = parseInt(btn.dataset.rank);
+      const r = results[rank];
+      deck[0] = r.leaderIdx;
+      r.members.forEach((idx, i) => { deck[i+1] = idx; });
+      activeSlot = -1;
+      renderDeck();
+      switchPage('builder');
+    });
+  });
+}
+
 // ===== Init =====
 document.addEventListener('DOMContentLoaded',()=>{
   const genSet=new Set(cards.flatMap(c=>c.genArr));
   const gens=[...genSet].sort((a,b)=>(GEN_ORDER[a]||99)-(GEN_ORDER[b]||99));
-  [document.getElementById('char-gen-filter'), document.getElementById('pick-gen-filter')].forEach(sel=>{
+  [document.getElementById('char-gen-filter'), document.getElementById('pick-gen-filter'), document.getElementById('owned-gen-filter')].forEach(sel=>{
     gens.forEach(g=>{const opt=document.createElement('option');opt.value=g;opt.textContent=g;sel.appendChild(opt);});
   });
   loadDeckFromURL();
   renderDeck();
   renderCharTable();
   document.getElementById('share-btn').addEventListener('click', shareDeck);
+  document.getElementById('save-team-btn').addEventListener('click', saveCurrentTeam);
+  renderSavedTeams();
 
   document.getElementById('deck-area').addEventListener('click',(e)=>{
     const removeBtn = e.target.closest('.slot-remove');
@@ -1921,6 +2270,32 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderTierResult(getActiveTierCache());
   buildMemberTier();
   document.getElementById('picker-overlay').addEventListener('click',(e)=>{ if(e.target.id==='picker-overlay'){document.getElementById('pick-search').value=''; activeSlot=-1;renderDeck();} });
+  // Owned page
+  document.getElementById('owned-search').addEventListener('input', renderOwnedGrid);
+  document.getElementById('owned-type-filter').addEventListener('change', renderOwnedGrid);
+  document.getElementById('owned-gen-filter').addEventListener('change', renderOwnedGrid);
+  document.getElementById('owned-status-filter').addEventListener('change', renderOwnedGrid);
+  renderOwnedGrid();
+  // Owned best team start button
+  document.getElementById('owned-best-start').addEventListener('click', renderOwnedBestTeam);
+  // Owned best team mode toggle
+  document.getElementById('owned-best-nodup').addEventListener('click', () => {
+    ownedBestDupMode = false;
+    document.getElementById('owned-best-nodup').classList.add('active');
+    document.getElementById('owned-best-dup').classList.remove('active');
+    if (!ownedBestRunning) renderOwnedBestResult(ownedBestCacheNoDup);
+  });
+  document.getElementById('owned-best-dup').addEventListener('click', () => {
+    ownedBestDupMode = true;
+    document.getElementById('owned-best-dup').classList.add('active');
+    document.getElementById('owned-best-nodup').classList.remove('active');
+    if (!ownedBestRunning) renderOwnedBestResult(ownedBestCacheDup);
+  });
+  // Picker owned toggle
+  document.getElementById('pick-owned-toggle').addEventListener('click', () => {
+    document.getElementById('pick-owned-toggle').classList.toggle('active');
+    renderPicker();
+  });
   document.getElementById('char-search').addEventListener('input',renderCharTable);
   document.getElementById('char-type-filter').addEventListener('change',renderCharTable);
   document.getElementById('char-gen-filter').addEventListener('change',renderCharTable);
@@ -1932,16 +2307,20 @@ document.addEventListener('DOMContentLoaded',()=>{
       renderCharTable();
     });
   });
+  function switchPage(pageName) {
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelector('.nav-item[data-page="'+pageName+'"]').classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+pageName).classList.add('active');
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    localStorage.setItem('holodri_tab', pageName);
+  }
   document.querySelectorAll('.nav-item').forEach(item=>{
-    item.addEventListener('click',()=>{
-      document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-      item.classList.add('active');
-      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-      document.getElementById('page-'+item.dataset.page).classList.add('active');
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebar-overlay').classList.remove('open');
-    });
+    item.addEventListener('click',()=>{ switchPage(item.dataset.page); });
   });
+  const savedTab = localStorage.getItem('holodri_tab');
+  if (savedTab && document.getElementById('page-'+savedTab)) { switchPage(savedTab); }
   document.getElementById('sidebar-toggle').addEventListener('click',()=>{
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebar-overlay').classList.toggle('open');
@@ -1964,6 +2343,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       <select id="pick-gen-filter"><option value="">全所属</option></select>
       <select id="pick-sort"><option value="member">公式順</option><option value="total">総合力順</option><option value="p">P順</option><option value="t">T順</option><option value="s">S順</option></select>
       <button class="tier-mode-btn active" id="pick-dup-toggle" style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:0.78em;white-space:nowrap;">同キャラ可</button>
+      <button class="tier-mode-btn" id="pick-owned-toggle" style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:0.78em;white-space:nowrap;">所持のみ</button>
     </div>
     <div class="picker-modal-body">
       <div class="picker-grid" id="picker-grid"></div>
