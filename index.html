@@ -393,7 +393,7 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     <div class="nav-item" data-page="owned"><span class="nav-icon">&#128188;</span>所持カード</div>
     <div class="nav-item" data-page="changelog"><span class="nav-icon">&#128221;</span>更新履歴</div>
   </div>
-  <div class="sidebar-footer">v1.6.1<br>楽曲一覧 + 編成シミュレーター + TIER分析</div>
+  <div class="sidebar-footer">v1.6.2<br>楽曲一覧 + 編成シミュレーター + TIER分析</div>
 </nav>
 
 <div class="main">
@@ -581,6 +581,20 @@ body { font-family:'Noto Sans JP','Hiragino Sans','Segoe UI',sans-serif; backgro
     </div>
     <div style="max-width:700px;">
       <div style="border-left:3px solid var(--accent); padding-left:16px; display:flex; flex-direction:column; gap:20px;">
+        <div>
+          <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.6.2 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-13</span></div>
+          <div style="margin:6px 0 0 0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
+            <div style="color:#66b3ff; font-weight:600; margin-top:4px;">改善</div>
+            <ul style="margin:4px 0 0 16px; padding:0;">
+              <li>リーダー枠の表示をシンプル化（衣装スキルのみ表示、タイプ・パッシブ・アクティブを非表示に）</li>
+              <li>デッキスロットのリーダー枠に衣装スキル内容を表示</li>
+            </ul>
+            <div style="color:#e8a040; font-weight:600; margin-top:4px;">不具合修正</div>
+            <ul style="margin:4px 0 0 16px; padding:0;">
+              <li>リーダーのタイプがスキル発動条件のカウントに含まれていた問題を修正</li>
+            </ul>
+          </div>
+        </div>
         <div>
           <div style="font-weight:700; color:var(--accent); font-size:0.95em;">v1.6.1 <span style="color:var(--text-dim); font-weight:400; font-size:0.85em;">2026-08-13</span></div>
           <div style="margin:6px 0 0 0; font-size:0.88em; line-height:1.7; color:var(--text-mid);">
@@ -1185,13 +1199,21 @@ function renderDeck() {
       const c = cards[idx];
       cls += ' filled ' + typeBorderClass(c.type);
       el.className = cls;
-      el.innerHTML = '<div class="slot-label '+(isLeader?'leader-label':'')+'">'+labels[i]+'</div>'
-        +'<div class="slot-name">'+displayName(c)+'</div>'
-        +'<div class="slot-costume">'+c.costume+'</div>'
-        +'<div class="slot-type-badge"><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></div>'
-        +'<div class="slot-params"'+(isLeader?' style="opacity:0.35"':'')+'><span class="sp">P:'+c.p.toLocaleString()+'</span><span class="st">T:'+c.t.toLocaleString()+'</span><span class="ss">S:'+c.s.toLocaleString()+'</span></div>'
-        +(isLeader?'<div style="font-size:0.65em;color:var(--text-dim);margin-top:2px">衣装スキル枠（スコア不参加）</div>':'<div class="slot-total">'+c.total.toLocaleString()+'</div>')
-        +'<div class="slot-remove" data-slot="'+i+'">&times;</div>';
+      if (isLeader) {
+        el.innerHTML = '<div class="slot-label leader-label">'+labels[i]+'</div>'
+          +'<div class="slot-name">'+displayName(c)+'</div>'
+          +'<div class="slot-costume">'+c.costume+'</div>'
+          +'<div style="font-size:0.65em;color:var(--text-dim);margin-top:4px;line-height:1.4">'+c.costumeSkill+'</div>'
+          +'<div class="slot-remove" data-slot="'+i+'">&times;</div>';
+      } else {
+        el.innerHTML = '<div class="slot-label">'+labels[i]+'</div>'
+          +'<div class="slot-name">'+displayName(c)+'</div>'
+          +'<div class="slot-costume">'+c.costume+'</div>'
+          +'<div class="slot-type-badge"><span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span></div>'
+          +'<div class="slot-params"><span class="sp">P:'+c.p.toLocaleString()+'</span><span class="st">T:'+c.t.toLocaleString()+'</span><span class="ss">S:'+c.s.toLocaleString()+'</span></div>'
+          +'<div class="slot-total">'+c.total.toLocaleString()+'</div>'
+          +'<div class="slot-remove" data-slot="'+i+'">&times;</div>';
+      }
     } else {
       el.className = cls;
       el.innerHTML = '<div class="slot-label '+(isLeader?'leader-label':'')+'">'+labels[i]+'</div><div class="slot-empty">タップして選択</div>';
@@ -1617,7 +1639,7 @@ function renderSkillStatus() {
     return;
   }
 
-  const partyIdxs = filled;
+  const memberOnlyIdxs = deck.slice(1).filter(v=>v!==null);
   const labels = ['LEADER','メンバー1','メンバー2','メンバー3','メンバー4','メンバー5'];
   let html = '<div class="skill-panel">';
 
@@ -1629,39 +1651,44 @@ function renderSkillStatus() {
     const roleLabel = labels[slot];
 
     html += '<div class="skill-card">';
+    if (isLeader) {
+      // Leader: show only name + costume skill
+      html += '<div class="skill-card-header">'
+        +'<span class="skill-card-name">'+displayName(c)+'</span>'
+        +'<span class="skill-card-role">'+roleLabel+'</span>'
+        +'</div>';
+      if (c.costumeSkill) {
+        const cs = costumeSkills[idx];
+        const memberIdxs = deck.slice(1).filter(v=>v!==null);
+        let statusHtml = '';
+        if (cs.condType) {
+          const met = checkCond(cs, memberIdxs);
+          const cc = cs.condType==='type' ? memberIdxs.filter(i=>cards[i].type===cs.condVal).length : memberIdxs.filter(i=>cards[i].genArr.includes(cs.condVal)).length;
+          if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
+          else statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">あと'+(cs.condCount-cc)+'人</span>';
+        } else {
+          statusHtml = '<span class="skill-status skill-ok">発動</span>';
+        }
+        html += '<div class="skill-row"><span class="skill-tag skill-tag-costume">衣装</span><span class="skill-text">'+(c.costumeSkillDetail||c.costumeSkill)+'</span>'+statusHtml+'</div>';
+      }
+      html += '</div>';
+      continue;
+    }
+    // Members: show type badge + passive + active
     html += '<div class="skill-card-header">'
       +'<span class="type-badge '+typeClass(c.type)+'">'+c.type+'</span>'
       +'<span class="skill-card-name">'+displayName(c)+'</span>'
       +'<span class="skill-card-role">'+roleLabel+'</span>'
       +'</div>';
 
-    // Costume skill (leader only)
-    if (isLeader && c.costumeSkill) {
-      const cs = costumeSkills[idx];
-      const memberIdxs = deck.slice(1).filter(v=>v!==null);
-      let statusHtml = '';
-      if (cs.condType) {
-        const met = checkCond(cs, memberIdxs);
-        const cl = cs.condType==='type' ? cs.condVal+'タイプ'+cs.condCount+'人以上' : cs.condVal+cs.condCount+'人以上';
-        const cc = cs.condType==='type' ? memberIdxs.filter(i=>cards[i].type===cs.condVal).length : memberIdxs.filter(i=>cards[i].genArr.includes(cs.condVal)).length;
-        if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
-        else statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">あと'+(cs.condCount-cc)+'人</span>';
-      } else {
-        statusHtml = '<span class="skill-status skill-ok">発動</span>';
-      }
-      html += '<div class="skill-row"><span class="skill-tag skill-tag-costume">衣装</span><span class="skill-text">'+(c.costumeSkillDetail||c.costumeSkill)+'</span>'+statusHtml+'</div>';
-    }
-
-    // Passive skill (leader does NOT fire passive - leader uses costume skill)
+    // Passive skill
     if (c.passive) {
-      if (isLeader) {
-        html += '<div class="skill-row"><span class="skill-tag skill-tag-passive">パッシブ</span><span class="skill-text" style="opacity:0.5">'+c.passive+'</span><span class="skill-status skill-live">衣装スキル枠</span></div>';
-      } else {
+      {
         const cond = parseSkillCond(c.passive);
         let statusHtml = '';
         if (cond.condType && cond.checkable) {
-          const met = checkSkillCond(cond, partyIdxs);
-          const cc = condCurrentCount(cond, partyIdxs);
+          const met = checkSkillCond(cond, memberOnlyIdxs);
+          const cc = condCurrentCount(cond, memberOnlyIdxs);
           if (met) statusHtml = '<span class="skill-status skill-ok">発動</span>';
           else {
             statusHtml = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
@@ -1669,7 +1696,7 @@ function renderSkillStatus() {
               if (cond.condType==='type') return ec.type===cond.condVal;
               if (cond.condType==='gen') return ec.genArr.includes(cond.condVal);
               return false;
-            }).filter(ec => !partyIdxs.includes(ec.idx));
+            }).filter(ec => !memberOnlyIdxs.includes(ec.idx) && ec.idx !== deck[0]);
             if (eligible.length) {
               statusHtml += '<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;"><span style="font-size:0.82em;color:var(--text-dim);margin-right:2px;">対象:</span>'
                 + eligible.map(ec => '<span class="eligible-card" data-idx="'+ec.idx+'">'
@@ -1687,27 +1714,23 @@ function renderSkillStatus() {
       }
     }
 
-    // Active skill + extra condition (leader does NOT fire active - leader uses costume skill)
+    // Active skill + extra condition
     if (c.active) {
-      if (isLeader) {
-        html += '<div class="skill-row"><span class="skill-tag skill-tag-active">アクティブ</span><span class="skill-text" style="opacity:0.5">'+c.active+'</span><span class="skill-status skill-live">衣装スキル枠</span></div>';
-      } else {
-        let activeStatus = '<span class="skill-status skill-ok">発動</span>';
-        html += '<div class="skill-row"><span class="skill-tag skill-tag-active">アクティブ</span><span class="skill-text">'+c.active+'</span>'+activeStatus+'</div>';
+      let activeStatus = '<span class="skill-status skill-ok">発動</span>';
+      html += '<div class="skill-row"><span class="skill-tag skill-tag-active">アクティブ</span><span class="skill-text">'+c.active+'</span>'+activeStatus+'</div>';
 
-        if (c.activeExtra) {
-          const cond = parseSkillCond(c.activeExtra);
-          let extraStatus = '';
-          if (cond.condType && cond.checkable) {
-            const met = checkSkillCond(cond, partyIdxs);
-            const cc = condCurrentCount(cond, partyIdxs);
-            if (met) extraStatus = '<span class="skill-status skill-ok">発動</span>';
-            else extraStatus = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
-          } else if (cond.condType) {
-            extraStatus = '<span class="skill-status skill-live">ライブ条件</span>';
-          }
-          html += '<div class="skill-row" style="padding-left:52px;"><span class="skill-text" style="font-size:0.9em;">┗ '+c.activeExtra+'</span>'+extraStatus+'</div>';
+      if (c.activeExtra) {
+        const cond = parseSkillCond(c.activeExtra);
+        let extraStatus = '';
+        if (cond.condType && cond.checkable) {
+          const met = checkSkillCond(cond, memberOnlyIdxs);
+          const cc = condCurrentCount(cond, memberOnlyIdxs);
+          if (met) extraStatus = '<span class="skill-status skill-ok">発動</span>';
+          else extraStatus = '<span class="skill-status skill-ng">未発動</span><span class="skill-need">'+condLabel(cond)+' (現在'+cc+'人)</span>';
+        } else if (cond.condType) {
+          extraStatus = '<span class="skill-status skill-live">ライブ条件</span>';
         }
+        html += '<div class="skill-row" style="padding-left:52px;"><span class="skill-text" style="font-size:0.9em;">┗ '+c.activeExtra+'</span>'+extraStatus+'</div>';
       }
     }
 
